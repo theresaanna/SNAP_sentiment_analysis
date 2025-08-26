@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Threads Reply Analysis Dashboard</title>
+    <title>Advanced Threads Reply Analysis Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -21,7 +22,7 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -116,7 +117,7 @@
             grid-column: 1 / -1;
         }
 
-        .word-cloud-container {
+        .wordcloud-container {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 20px;
@@ -125,90 +126,222 @@
             margin-bottom: 30px;
         }
 
-        .word-list {
+        .wordcloud-wrapper {
+            height: 500px;
+            position: relative;
+            background: radial-gradient(circle at center, #f8fafc, #e2e8f0);
+            border-radius: 15px;
+            overflow: hidden;
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
+            align-items: center;
             justify-content: center;
-            margin-top: 20px;
         }
 
-        .word-item {
+        .wordcloud-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
-            padding: 8px 15px;
+            border: none;
+            padding: 10px 20px;
             border-radius: 25px;
-            font-weight: 500;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
         }
 
-        .sentiment-words-container {
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .control-btn.active {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+        }
+
+        .data-viewer-section {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 20px;
-            padding: 25px;
+            padding: 30px;
             box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-            margin-bottom: 30px;
+            margin-top: 30px;
         }
 
-        .sentiment-section {
-            margin-bottom: 30px;
-        }
-
-        .sentiment-header {
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 10px;
+        .data-viewer-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #333;
             text-align: center;
         }
 
-        .positive-header {
-            background: rgba(76, 175, 80, 0.1);
-            color: #4caf50;
-            border: 2px solid #4caf50;
+        .data-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
         }
 
-        .neutral-header {
-            background: rgba(149, 165, 166, 0.1);
-            color: #95a5a6;
-            border: 2px solid #95a5a6;
+        .data-controls-left {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
         }
 
-        .negative-header {
-            background: rgba(244, 67, 54, 0.1);
-            color: #f44336;
-            border: 2px solid #f44336;
+        .data-controls-right {
+            display: flex;
+            gap: 15px;
+            align-items: center;
         }
 
-        .words-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        .filter-input, .search-input {
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .filter-input:focus, .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .data-table-container {
+            max-height: 500px;
+            overflow: auto;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            background: white;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .data-table th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-bottom: 2px solid #fff;
+        }
+
+        .data-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .data-table tr:hover {
+            background-color: #f8fafc;
+        }
+
+        .data-table tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+
+        .sentiment-positive {
+            background-color: #dcfce7 !important;
+            color: #166534;
+            font-weight: 600;
+        }
+        .sentiment-negative {
+            background-color: #fee2e2 !important;
+            color: #991b1b;
+            font-weight: 600;
+        }
+        .sentiment-neutral {
+            background-color: #f3f4f6 !important;
+            color: #374151;
+            font-weight: 600;
+        }
+
+        .confidence-high { color: #059669; font-weight: 600; }
+        .confidence-medium { color: #d97706; font-weight: 600; }
+        .confidence-low { color: #dc2626; font-weight: 600; }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
             gap: 10px;
         }
 
-        .word-bubble {
-            padding: 8px 12px;
-            border-radius: 20px;
-            text-align: center;
-            font-size: 0.9rem;
-            font-weight: 500;
+        .pagination button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
         }
 
-        .positive-word {
-            background: rgba(76, 175, 80, 0.8);
-            color: white;
+        .pagination button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
 
-        .neutral-word {
-            background: rgba(149, 165, 166, 0.8);
-            color: white;
+        .pagination button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
-        .negative-word {
-            background: rgba(244, 67, 54, 0.8);
+        .export-btn {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
             color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        }
+
+        .text-preview {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .text-preview:hover {
+            background-color: #e0f2fe !important;
+        }
+
+        .text-full {
+            display: none;
+            max-width: 400px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
 
         .loading {
@@ -231,9 +364,19 @@
             .charts-grid {
                 grid-template-columns: 1fr;
             }
-
             .header h1 {
                 font-size: 2rem;
+            }
+            .data-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .data-table {
+                font-size: 11px;
+            }
+            .data-table th, .data-table td {
+                padding: 6px 4px;
+                max-width: 120px;
             }
         }
     </style>
@@ -241,8 +384,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Threads Reply Analysis Dashboard</h1>
-            <p>Comprehensive sentiment analysis and engagement metrics</p>
+            <h1>Advanced Threads Reply Analysis Dashboard</h1>
+            <p>Comprehensive sentiment analysis with advanced visualizations and data exploration</p>
             <div style="margin-top: 20px;">
                 <input type="file" id="fileInput" accept=".csv" style="display: none;">
                 <button onclick="document.getElementById('fileInput').click()" style="
@@ -255,7 +398,7 @@
                     cursor: pointer;
                     transition: transform 0.3s ease;
                 " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                    📁 Select CSV File
+                    Select CSV File
                 </button>
             </div>
         </div>
@@ -268,6 +411,19 @@
 
         <div id="content" style="display: none;">
             <div class="stats-grid" id="statsGrid"></div>
+
+            <div class="wordcloud-container full-width">
+                <div class="chart-title">Interactive Word Cloud</div>
+                <div class="wordcloud-controls">
+                    <button class="control-btn active" onclick="updateWordCloud('all')">All Words</button>
+                    <button class="control-btn" onclick="updateWordCloud('positive')">Positive Replies</button>
+                    <button class="control-btn" onclick="updateWordCloud('negative')">Negative Replies</button>
+                    <button class="control-btn" onclick="updateWordCloud('neutral')">Neutral Replies</button>
+                </div>
+                <div class="wordcloud-wrapper">
+                    <canvas id="wordcloud" width="1200" height="500"></canvas>
+                </div>
+            </div>
 
             <div class="charts-grid">
                 <div class="chart-container">
@@ -292,9 +448,16 @@
                 </div>
 
                 <div class="chart-container">
-                    <div class="chart-title">Word Usage by Sentiment</div>
+                    <div class="chart-title">Reply Activity by Hour</div>
                     <div class="chart-wrapper">
-                        <canvas id="wordAnalysisChart"></canvas>
+                        <canvas id="hourlyChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Confidence Levels</div>
+                    <div class="chart-wrapper">
+                        <canvas id="confidenceChart"></canvas>
                     </div>
                 </div>
 
@@ -304,51 +467,69 @@
                         <canvas id="emojiChart"></canvas>
                     </div>
                 </div>
+            </div>
 
-                <div class="chart-container">
-                    <div class="chart-title">Engagement Patterns</div>
-                    <div class="chart-wrapper">
-                        <canvas id="engagementChart"></canvas>
-                    </div>
+            <div class="chart-container full-width">
+                <div class="chart-title">Sentiment Over Time</div>
+                <div class="chart-wrapper" style="height: 500px;">
+                    <canvas id="timelineChart"></canvas>
                 </div>
             </div>
 
-            <div class="sentiment-words-container">
-                <div class="chart-title">Most Common Words by Sentiment</div>
+            <div class="data-viewer-section">
+                <h2 class="data-viewer-title">Raw Data Viewer</h2>
 
-                <div class="sentiment-section">
-                    <div class="sentiment-header positive-header">
-                        😊 Positive Comments (Top Words)
+                <div class="data-controls">
+                    <div class="data-controls-left">
+                        <input type="text" id="searchInput" class="search-input" placeholder="Search text content..." onkeyup="filterTable()">
+                        <select id="sentimentFilter" class="filter-input" onchange="filterTable()">
+                            <option value="">All Sentiments</option>
+                            <option value="positive">Positive</option>
+                            <option value="negative">Negative</option>
+                            <option value="neutral">Neutral</option>
+                        </select>
+                        <select id="confidenceFilter" class="filter-input" onchange="filterTable()">
+                            <option value="">All Confidence</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
                     </div>
-                    <div class="words-grid" id="positiveWords"></div>
+                    <div class="data-controls-right">
+                        <button class="export-btn" onclick="exportFilteredData()">Export Filtered</button>
+                        <span id="filteredCount">0 rows</span>
+                    </div>
                 </div>
 
-                <div class="sentiment-section">
-                    <div class="sentiment-header neutral-header">
-                        😐 Neutral Comments (Top Words)
-                    </div>
-                    <div class="words-grid" id="neutralWords"></div>
+                <div class="data-table-container">
+                    <table class="data-table" id="dataTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">Row</th>
+                                <th style="width: 100px;">Username</th>
+                                <th style="width: 300px;">Text Content</th>
+                                <th style="width: 100px;">Sentiment</th>
+                                <th style="width: 80px;">Score</th>
+                                <th style="width: 80px;">Confidence</th>
+                                <th style="width: 60px;">Words</th>
+                                <th style="width: 60px;">Emojis</th>
+                                <th style="width: 120px;">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody"></tbody>
+                    </table>
                 </div>
 
-                <div class="sentiment-section">
-                    <div class="sentiment-header negative-header">
-                        😠 Negative Comments (Top Words)
-                    </div>
-                    <div class="words-grid" id="negativeWords"></div>
-                </div>
-            </div>
-
-            <div class="word-cloud-container full-width">
-                <div class="chart-title">Overall Most Common Words</div>
-                <div class="word-list" id="wordCloud"></div>
-            </div>
-
-            <div class="charts-grid">
-                <div class="chart-container full-width">
-                    <div class="chart-title">Sentiment vs Word Count</div>
-                    <div class="chart-wrapper">
-                        <canvas id="scatterChart"></canvas>
-                    </div>
+                <div class="pagination">
+                    <button id="prevPageBtn" onclick="changePage(-1)" disabled>← Previous</button>
+                    <span id="pageInfo">Page 1 of 1</span>
+                    <button id="nextPageBtn" onclick="changePage(1)">Next →</button>
+                    <select id="rowsPerPage" onchange="updateRowsPerPage()" style="margin-left: 20px; padding: 5px;">
+                        <option value="25">25 rows</option>
+                        <option value="50" selected>50 rows</option>
+                        <option value="100">100 rows</option>
+                        <option value="all">All rows</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -356,6 +537,11 @@
 
     <script>
         let data = [];
+        let wordFrequency = {};
+        let currentWordCloudFilter = 'all';
+        let filteredData = [];
+        let currentPage = 1;
+        let rowsPerPageValue = 50;
 
         function handleFileSelect(event) {
             const file = event.target.files[0];
@@ -382,22 +568,21 @@
                     }
 
                     console.log(`Loaded ${data.length} replies`);
+                    processWordFrequency();
 
-                    // Hide loading, show content
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('content').style.display = 'block';
 
-                    // Generate all visualizations
                     generateStats();
                     generateSentimentChart();
                     generateSentimentScoreChart();
                     generateLengthChart();
-                    generateWordAnalysisChart();
+                    generateHourlyChart();
+                    generateConfidenceChart();
                     generateEmojiChart();
-                    generateEngagementChart();
-                    generateSentimentWords();
-                    generateWordCloud();
-                    generateScatterChart();
+                    generateTimelineChart();
+                    createWordCloud();
+                    populateDataTable();
 
                 } catch (error) {
                     console.error('Error processing file:', error);
@@ -428,6 +613,7 @@
                 }
 
                 console.log(`Auto-loaded ${data.length} replies`);
+                processWordFrequency();
 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('content').style.display = 'block';
@@ -436,17 +622,114 @@
                 generateSentimentChart();
                 generateSentimentScoreChart();
                 generateLengthChart();
-                generateWordAnalysisChart();
+                generateHourlyChart();
+                generateConfidenceChart();
                 generateEmojiChart();
-                generateEngagementChart();
-                generateSentimentWords();
-                generateWordCloud();
-                generateScatterChart();
+                generateTimelineChart();
+                createWordCloud();
+                populateDataTable();
 
             } catch (error) {
                 console.log('Auto-load failed, showing file picker');
                 document.getElementById('loading').style.display = 'none';
             }
+        }
+
+        function processWordFrequency() {
+            wordFrequency = {
+                all: {},
+                positive: {},
+                negative: {},
+                neutral: {}
+            };
+
+            const stopWords = new Set([
+                'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+                'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have',
+                'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should',
+                'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us',
+                'them', 'my', 'your', 'his', 'its', 'our', 'their', 'this', 'that',
+                'these', 'those', 'am', 'if', 'so', 'no', 'not', 'can', 'get', 'just'
+            ]);
+
+            data.forEach(row => {
+                if (!row.cleaned_text) return;
+
+                const words = row.cleaned_text.toLowerCase()
+                    .replace(/[^\w\s]/g, ' ')
+                    .split(/\s+/)
+                    .filter(word => word.length > 2 && !stopWords.has(word));
+
+                const sentiment = row.final_sentiment || 'neutral';
+
+                words.forEach(word => {
+                    wordFrequency.all[word] = (wordFrequency.all[word] || 0) + 1;
+                    wordFrequency[sentiment][word] = (wordFrequency[sentiment][word] || 0) + 1;
+                });
+            });
+        }
+
+        function createWordCloud() {
+            updateWordCloud('all');
+        }
+
+        function updateWordCloud(filter) {
+            currentWordCloudFilter = filter;
+
+            document.querySelectorAll('.control-btn').forEach(btn => btn.classList.remove('active'));
+            const buttons = document.querySelectorAll('.control-btn');
+            buttons.forEach(btn => {
+                if ((filter === 'all' && btn.textContent.includes('All')) ||
+                    btn.textContent.toLowerCase().includes(filter)) {
+                    btn.classList.add('active');
+                }
+            });
+
+            const canvas = document.getElementById('wordcloud');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const words = wordFrequency[filter] || {};
+            const wordList = Object.entries(words)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 100)
+                .map(([word, count]) => [word, count]);
+
+            if (wordList.length === 0) {
+                ctx.fillStyle = '#666';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('No words found for this filter', canvas.width/2, canvas.height/2);
+                return;
+            }
+
+            WordCloud(canvas, {
+                list: wordList,
+                gridSize: Math.round(8 * canvas.width / 1200),
+                weightFactor: function (size) {
+                    const maxCount = Math.max(...wordList.map(([,count]) => count));
+                    const minCount = Math.min(...wordList.map(([,count]) => count));
+                    const normalizedSize = (size - minCount) / (maxCount - minCount);
+                    return (12 + normalizedSize * 48) * (canvas.width / 1200);
+                },
+                fontFamily: 'Arial, sans-serif',
+                color: function (word, weight, fontSize, distance, theta) {
+                    const colors = {
+                        all: ['#667eea', '#764ba2', '#f093fb', '#f5576c'],
+                        positive: ['#22c55e', '#16a34a', '#15803d', '#166534'],
+                        negative: ['#ef4444', '#dc2626', '#b91c1c', '#991b1b'],
+                        neutral: ['#9ca3af', '#6b7280', '#4b5563', '#374151']
+                    };
+                    const colorSet = colors[filter] || colors.all;
+                    return colorSet[Math.floor(Math.random() * colorSet.length)];
+                },
+                rotateRatio: 0.2,
+                backgroundColor: 'transparent',
+                drawOutOfBound: false,
+                shrinkToFit: true,
+                minSize: 12,
+                maxSize: 60
+            });
         }
 
         function generateStats() {
@@ -497,9 +780,7 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            position: 'bottom'
-                        }
+                        legend: { position: 'bottom' }
                     }
                 }
             });
@@ -544,18 +825,8 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Sentiment Score'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Frequency'
-                            }
-                        }
+                        x: { title: { display: true, text: 'Sentiment Score' } },
+                        y: { title: { display: true, text: 'Frequency' } }
                     }
                 }
             });
@@ -599,165 +870,123 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Word Count Range'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Number of Replies'
-                            }
-                        }
+                        x: { title: { display: true, text: 'Word Count Range' } },
+                        y: { title: { display: true, text: 'Number of Replies' } }
                     }
                 }
             });
         }
 
-        function generateWordAnalysisChart() {
-            // Analyze top words for each sentiment
-            const sentimentWords = {
-                positive: {},
-                neutral: {},
-                negative: {}
-            };
-
-            const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'its', 'our', 'their']);
+        function generateHourlyChart() {
+            const hourCounts = new Array(24).fill(0);
+            const hourlySentiment = Array(24).fill(null).map(() => ({positive: 0, neutral: 0, negative: 0}));
 
             data.forEach(d => {
-                const sentiment = d.final_sentiment || 'neutral';
-                if (d.cleaned_text && sentimentWords[sentiment]) {
-                    const words = d.cleaned_text.toLowerCase()
-                        .replace(/[^\w\s]/g, '')
-                        .split(/\s+/)
-                        .filter(word => word.length > 2 && !stopWords.has(word));
-
-                    words.forEach(word => {
-                        sentimentWords[sentiment][word] = (sentimentWords[sentiment][word] || 0) + 1;
-                    });
+                if (d.hour !== null && d.hour !== undefined) {
+                    const hour = parseInt(d.hour);
+                    if (hour >= 0 && hour < 24) {
+                        hourCounts[hour]++;
+                        const sentiment = d.final_sentiment || 'neutral';
+                        hourlySentiment[hour][sentiment]++;
+                    }
                 }
             });
 
-            // Get top 10 words for each sentiment
-            const topWords = {};
-            Object.keys(sentimentWords).forEach(sentiment => {
-                topWords[sentiment] = Object.entries(sentimentWords[sentiment])
-                    .sort(([,a], [,b]) => b - a)
-                    .slice(0, 10)
-                    .map(([word, count]) => ({ word, count }));
-            });
-
-            // Create a combined chart showing word frequency across sentiments
-            const allUniqueWords = new Set();
-            Object.values(topWords).forEach(words => {
-                words.forEach(({word}) => allUniqueWords.add(word));
-            });
-
-            const wordsArray = Array.from(allUniqueWords).slice(0, 15); // Top 15 unique words
-
-            const datasets = [
-                {
-                    label: 'Positive',
-                    data: wordsArray.map(word => sentimentWords.positive[word] || 0),
-                    backgroundColor: 'rgba(76, 175, 80, 0.8)',
-                    borderColor: 'rgba(76, 175, 80, 1)',
-                    borderWidth: 1
-                },
-                {
-                    label: 'Neutral',
-                    data: wordsArray.map(word => sentimentWords.neutral[word] || 0),
-                    backgroundColor: 'rgba(149, 165, 166, 0.8)',
-                    borderColor: 'rgba(149, 165, 166, 1)',
-                    borderWidth: 1
-                },
-                {
-                    label: 'Negative',
-                    data: wordsArray.map(word => sentimentWords.negative[word] || 0),
-                    backgroundColor: 'rgba(244, 67, 54, 0.8)',
-                    borderColor: 'rgba(244, 67, 54, 1)',
-                    borderWidth: 1
-                }
-            ];
-
-            const ctx = document.getElementById('wordAnalysisChart').getContext('2d');
+            const ctx = document.getElementById('hourlyChart').getContext('2d');
             new Chart(ctx, {
-                type: 'bar',
+                type: 'line',
                 data: {
-                    labels: wordsArray,
-                    datasets: datasets
+                    labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                    datasets: [
+                        {
+                            label: 'Total Replies',
+                            data: hourCounts,
+                            borderColor: 'rgb(102, 126, 234)',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Positive',
+                            data: hourlySentiment.map(h => h.positive),
+                            borderColor: '#22c55e',
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Negative',
+                            data: hourlySentiment.map(h => h.negative),
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            tension: 0.4
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top' } },
                     scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Words'
-                            }
-                        },
+                        x: { title: { display: true, text: 'Hour of Day' } },
                         y: {
-                            title: {
-                                display: true,
-                                text: 'Frequency'
-                            },
-                            beginAtZero: true
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                title: function(context) {
-                                    return `Word: "${context[0].label}"`;
-                                },
-                                label: function(context) {
-                                    return `${context.dataset.label}: ${context.raw} times`;
-                                }
-                            }
+                            beginAtZero: true,
+                            title: { display: true, text: 'Number of Replies' }
                         }
                     }
                 }
             });
         }
 
-        function generateSentimentWords() {
-            const sentimentWords = {
-                positive: {},
-                neutral: {},
-                negative: {}
+        function generateConfidenceChart() {
+            const confidenceData = {
+                high: { positive: 0, neutral: 0, negative: 0 },
+                medium: { positive: 0, neutral: 0, negative: 0 },
+                low: { positive: 0, neutral: 0, negative: 0 }
             };
 
-            const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'its', 'our', 'their']);
-
-            data.forEach(d => {
-                const sentiment = d.final_sentiment || 'neutral';
-                if (d.cleaned_text && sentimentWords[sentiment]) {
-                    const words = d.cleaned_text.toLowerCase()
-                        .replace(/[^\w\s]/g, '')
-                        .split(/\s+/)
-                        .filter(word => word.length > 2 && !stopWords.has(word));
-
-                    words.forEach(word => {
-                        sentimentWords[sentiment][word] = (sentimentWords[sentiment][word] || 0) + 1;
-                    });
+            data.forEach(row => {
+                const conf = row.confidence || 'low';
+                const sent = row.final_sentiment || 'neutral';
+                if (confidenceData[conf] && confidenceData[conf].hasOwnProperty(sent)) {
+                    confidenceData[conf][sent]++;
                 }
             });
 
-            // Display top words for each sentiment
-            ['positive', 'neutral', 'negative'].forEach(sentiment => {
-                const topWords = Object.entries(sentimentWords[sentiment])
-                    .sort(([,a], [,b]) => b - a)
-                    .slice(0, 20);
-
-                const container = document.getElementById(`${sentiment}Words`);
-                container.innerHTML = topWords.map(([word, count]) =>
-                    `<div class="word-bubble ${sentiment}-word">${word} (${count})</div>`
-                ).join('');
+            const ctx = document.getElementById('confidenceChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['High', 'Medium', 'Low'],
+                    datasets: [
+                        {
+                            label: 'Positive',
+                            data: [confidenceData.high.positive, confidenceData.medium.positive, confidenceData.low.positive],
+                            backgroundColor: '#22c55e'
+                        },
+                        {
+                            label: 'Neutral',
+                            data: [confidenceData.high.neutral, confidenceData.medium.neutral, confidenceData.low.neutral],
+                            backgroundColor: '#9ca3af'
+                        },
+                        {
+                            label: 'Negative',
+                            data: [confidenceData.high.negative, confidenceData.medium.negative, confidenceData.low.negative],
+                            backgroundColor: '#ef4444'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top' } },
+                    scales: {
+                        x: { title: { display: true, text: 'Confidence Level' } },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Number of Replies' }
+                        }
+                    }
+                }
             });
         }
 
@@ -792,141 +1021,222 @@
                     scales: {
                         y: {
                             beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Number of Replies'
-                            }
+                            title: { display: true, text: 'Number of Replies' }
                         }
                     }
                 }
             });
         }
 
-        function generateEngagementChart() {
-            const engagement = {
-                questions: data.filter(d => d.has_question === 'True' || d.has_question === true).length,
-                exclamations: data.filter(d => d.has_exclamation === 'True' || d.has_exclamation === true).length,
-                caps: data.filter(d => d.has_caps === 'True' || d.has_caps === true).length,
-                emojis: data.filter(d => (d.emoji_count || 0) > 0).length
-            };
+        function generateTimelineChart() {
+            const timelineData = {};
+            data.forEach(row => {
+                if (row.timestamp) {
+                    const date = new Date(row.timestamp).toDateString();
+                    if (!timelineData[date]) {
+                        timelineData[date] = { positive: 0, neutral: 0, negative: 0, total: 0 };
+                    }
+                    const sentiment = row.final_sentiment || 'neutral';
+                    timelineData[date][sentiment]++;
+                    timelineData[date].total++;
+                }
+            });
 
-            const ctx = document.getElementById('engagementChart').getContext('2d');
+            const sortedDates = Object.keys(timelineData).sort((a, b) => new Date(a) - new Date(b));
+            const positiveData = sortedDates.map(date => (timelineData[date].positive / timelineData[date].total * 100));
+            const negativeData = sortedDates.map(date => (timelineData[date].negative / timelineData[date].total * 100));
+            const neutralData = sortedDates.map(date => (timelineData[date].neutral / timelineData[date].total * 100));
+
+            const ctx = document.getElementById('timelineChart').getContext('2d');
             new Chart(ctx, {
-                type: 'bar',
+                type: 'line',
                 data: {
-                    labels: ['Questions (?)', 'Exclamations (!)', 'ALL CAPS', 'Emojis'],
-                    datasets: [{
-                        label: 'Number of Replies',
-                        data: Object.values(engagement),
-                        backgroundColor: ['#9b59b6', '#e74c3c', '#f39c12', '#1abc9c']
-                    }]
+                    labels: sortedDates.map(date => new Date(date).toLocaleDateString()),
+                    datasets: [
+                        {
+                            label: 'Positive %',
+                            data: positiveData,
+                            borderColor: '#22c55e',
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                            tension: 0.4,
+                            fill: false
+                        },
+                        {
+                            label: 'Negative %',
+                            data: negativeData,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            tension: 0.4,
+                            fill: false
+                        },
+                        {
+                            label: 'Neutral %',
+                            data: neutralData,
+                            borderColor: '#9ca3af',
+                            backgroundColor: 'rgba(156, 163, 175, 0.1)',
+                            tension: 0.4,
+                            fill: false
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top' } },
                     scales: {
                         y: {
                             beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Number of Replies'
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function generateWordCloud() {
-            const wordCounts = {};
-            const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'its', 'our', 'their']);
-
-            data.forEach(d => {
-                if (d.cleaned_text) {
-                    const words = d.cleaned_text.toLowerCase()
-                        .replace(/[^\w\s]/g, '')
-                        .split(/\s+/)
-                        .filter(word => word.length > 2 && !stopWords.has(word));
-
-                    words.forEach(word => {
-                        wordCounts[word] = (wordCounts[word] || 0) + 1;
-                    });
-                }
-            });
-
-            const topWords = Object.entries(wordCounts)
-                .sort(([,a], [,b]) => b - a)
-                .slice(0, 50);
-
-            const wordCloudContainer = document.getElementById('wordCloud');
-            wordCloudContainer.innerHTML = topWords.map(([word, count]) =>
-                `<div class="word-item" style="font-size: ${Math.min(20, 10 + Math.log(count) * 2)}px">${word} (${count})</div>`
-            ).join('');
-        }
-
-        function generateScatterChart() {
-            const scatterData = data.map(d => ({
-                x: d.word_count || 0,
-                y: d.combined_sentiment_score || 0,
-                sentiment: d.final_sentiment || 'neutral'
-            }));
-
-            const positiveData = scatterData.filter(d => d.sentiment === 'positive');
-            const neutralData = scatterData.filter(d => d.sentiment === 'neutral');
-            const negativeData = scatterData.filter(d => d.sentiment === 'negative');
-
-            const ctx = document.getElementById('scatterChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'scatter',
-                data: {
-                    datasets: [{
-                        label: 'Positive',
-                        data: positiveData,
-                        backgroundColor: 'rgba(76, 175, 80, 0.6)',
-                        borderColor: 'rgba(76, 175, 80, 1)'
-                    }, {
-                        label: 'Neutral',
-                        data: neutralData,
-                        backgroundColor: 'rgba(149, 165, 166, 0.6)',
-                        borderColor: 'rgba(149, 165, 166, 1)'
-                    }, {
-                        label: 'Negative',
-                        data: negativeData,
-                        backgroundColor: 'rgba(255, 107, 107, 0.6)',
-                        borderColor: 'rgba(255, 107, 107, 1)'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Word Count'
-                            }
+                            max: 100,
+                            title: { display: true, text: 'Percentage' }
                         },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Sentiment Score'
-                            }
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return `Words: ${context.parsed.x}, Score: ${context.parsed.y.toFixed(3)}`;
-                                }
-                            }
-                        }
+                        x: { title: { display: true, text: 'Date' } }
                     }
                 }
             });
         }
 
-        // Load data when page loads
+        function populateDataTable() {
+            filteredData = [...data];
+            currentPage = 1;
+            updateTable();
+        }
+
+        function filterTable() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const sentimentFilter = document.getElementById('sentimentFilter').value;
+            const confidenceFilter = document.getElementById('confidenceFilter').value;
+
+            filteredData = data.filter(row => {
+                const matchesSearch = !searchTerm || (row.text || '').toLowerCase().includes(searchTerm);
+                const matchesSentiment = !sentimentFilter || (row.final_sentiment || 'neutral') === sentimentFilter;
+                const matchesConfidence = !confidenceFilter || (row.confidence || 'low') === confidenceFilter;
+
+                return matchesSearch && matchesSentiment && matchesConfidence;
+            });
+
+            currentPage = 1;
+            updateTable();
+        }
+
+        function updateTable() {
+            const tbody = document.getElementById('dataTableBody');
+            const rowsPerPage = rowsPerPageValue === 'all' ? filteredData.length : parseInt(rowsPerPageValue);
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = rowsPerPageValue === 'all' ? filteredData.length : startIndex + rowsPerPage;
+            const currentData = filteredData.slice(startIndex, endIndex);
+
+            tbody.innerHTML = '';
+
+            currentData.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                const globalIndex = startIndex + index + 1;
+
+                const displayText = (row.text || '').length > 100 ?
+                    (row.text || '').substring(0, 100) + '...' : (row.text || '');
+
+                tr.innerHTML = `
+                    <td>${globalIndex}</td>
+                    <td title="${row.username || ''}">${row.username || 'N/A'}</td>
+                    <td class="text-preview" onclick="toggleTextExpansion(this)" title="Click to expand">
+                        <div class="text-short">${displayText}</div>
+                        <div class="text-full">${row.text || ''}</div>
+                    </td>
+                    <td class="sentiment-${row.final_sentiment || 'neutral'}">${row.final_sentiment || 'neutral'}</td>
+                    <td>${row.combined_sentiment_score ? row.combined_sentiment_score.toFixed(3) : 'N/A'}</td>
+                    <td class="confidence-${row.confidence || 'low'}">${row.confidence || 'low'}</td>
+                    <td>${row.word_count || 0}</td>
+                    <td>${row.emoji_count || 0}</td>
+                    <td title="${row.timestamp}">${row.timestamp ? new Date(row.timestamp).toLocaleDateString() : 'N/A'}</td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+
+            updatePagination();
+            document.getElementById('filteredCount').textContent = `${filteredData.length} rows`;
+        }
+
+        function updatePagination() {
+            const totalRows = filteredData.length;
+            const rowsPerPage = rowsPerPageValue === 'all' ? totalRows : parseInt(rowsPerPageValue);
+            const totalPages = Math.ceil(totalRows / rowsPerPage);
+
+            document.getElementById('pageInfo').textContent =
+                rowsPerPageValue === 'all' ? `Showing all ${totalRows} rows` : `Page ${currentPage} of ${totalPages}`;
+
+            document.getElementById('prevPageBtn').disabled = currentPage <= 1;
+            document.getElementById('nextPageBtn').disabled = currentPage >= totalPages || rowsPerPageValue === 'all';
+        }
+
+        function changePage(direction) {
+            const totalRows = filteredData.length;
+            const rowsPerPage = parseInt(rowsPerPageValue);
+            const totalPages = Math.ceil(totalRows / rowsPerPage);
+
+            currentPage += direction;
+            if (currentPage < 1) currentPage = 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            updateTable();
+        }
+
+        function updateRowsPerPage() {
+            rowsPerPageValue = document.getElementById('rowsPerPage').value;
+            currentPage = 1;
+            updateTable();
+        }
+
+        function toggleTextExpansion(cell) {
+            const shortText = cell.querySelector('.text-short');
+            const fullText = cell.querySelector('.text-full');
+
+            if (fullText.style.display === 'none' || !fullText.style.display) {
+                shortText.style.display = 'none';
+                fullText.style.display = 'block';
+                cell.title = 'Click to collapse';
+            } else {
+                shortText.style.display = 'block';
+                fullText.style.display = 'none';
+                cell.title = 'Click to expand';
+            }
+        }
+
+        function exportFilteredData() {
+            if (filteredData.length === 0) {
+                alert('No data to export. Please adjust your filters.');
+                return;
+            }
+
+            const headers = [
+                'Username', 'Text', 'Sentiment', 'Score', 'Confidence',
+                'Word_Count', 'Emoji_Count', 'Timestamp'
+            ];
+
+            const csvContent = [
+                headers.join(','),
+                ...filteredData.map(row => [
+                    `"${(row.username || '').replace(/"/g, '""')}"`,
+                    `"${(row.text || '').replace(/"/g, '""')}"`,
+                    row.final_sentiment || 'neutral',
+                    row.combined_sentiment_score || '',
+                    row.confidence || 'low',
+                    row.word_count || 0,
+                    row.emoji_count || 0,
+                    row.timestamp || ''
+                ].join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `filtered_data_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
         document.addEventListener('DOMContentLoaded', loadAndAnalyzeData);
     </script>
 </body>
