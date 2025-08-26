@@ -1,123 +1,56 @@
-import requests
-import json
+#!/usr/bin/env python3
+"""
+Simple script to fix sentiment analysis on existing CSV files
+Run this on your existing analyzed CSV to get proper sentiment classifications
+"""
+
 import pandas as pd
-from datetime import datetime
-import time
-from typing import Dict, List, Optional
-import os
-from dotenv import load_dotenv
 import re
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from textblob import TextBlob
-import numpy as np
-
-# Load environment variables
-load_dotenv()
+from datetime import datetime
 
 
-class OptimizedThreadsAnalyzer:
-    """Enhanced Threads API client with optimized sentiment analysis"""
+def fix_sentiment_analysis(csv_file_path: str):
+    """Fix sentiment analysis on an existing CSV file"""
 
-    def __init__(self, access_token: str):
-        """
-        Initialize the Threads API client with optimized sentiment analysis
+    print(f"Loading CSV file: {csv_file_path}")
+    df = pd.read_csv(csv_file_path)
+    print(f"Found {len(df)} replies to analyze")
 
-        Args:
-            access_token: Your Threads API access token
-        """
-        self.access_token = access_token
-        self.base_url = "https://graph.threads.net/v1.0"
-        self.headers = {"Authorization": f"Bearer {access_token}"}
+    # Initialize sentiment analyzer
+    vader_analyzer = SentimentIntensityAnalyzer()
 
-        # Initialize sentiment analyzers
-        self.vader_analyzer = SentimentIntensityAnalyzer()
+    # Enhanced keyword lists
+    positive_keywords = [
+        'love', 'great', 'awesome', 'amazing', 'perfect', 'excellent', 'fantastic',
+        'wonderful', 'brilliant', 'outstanding', 'superb', 'fabulous', 'incredible',
+        'thank', 'thanks', 'grateful', 'appreciate', 'helpful', 'useful', 'valuable',
+        'agree', 'exactly', 'correct', 'right', 'yes', 'absolutely', 'definitely',
+        'smart', 'clever', 'wise', 'insightful', 'thoughtful', 'good', 'nice',
+        'well done', 'congrats', 'congratulations', 'proud', 'impressed', 'respect'
+    ]
 
-        # Enhanced keyword lists for context-aware analysis
-        self.positive_keywords = [
-            'love', 'great', 'awesome', 'amazing', 'perfect', 'excellent', 'fantastic',
-            'wonderful', 'brilliant', 'outstanding', 'superb', 'fabulous', 'incredible',
-            'thank', 'thanks', 'grateful', 'appreciate', 'helpful', 'useful', 'valuable',
-            'agree', 'exactly', 'correct', 'right', 'yes', 'absolutely', 'definitely',
-            'smart', 'clever', 'wise', 'insightful', 'thoughtful', 'good', 'nice',
-            'well done', 'congrats', 'congratulations', 'proud', 'impressed', 'respect'
-        ]
+    negative_keywords = [
+        'hate', 'terrible', 'awful', 'horrible', 'disgusting', 'pathetic', 'stupid',
+        'dumb', 'idiotic', 'moronic', 'ridiculous', 'absurd', 'nonsense', 'crazy',
+        'wrong', 'false', 'lie', 'lies', 'fake', 'fraud', 'scam', 'bullshit', 'bs',
+        'disagree', 'no', 'never', 'impossible', 'ridiculous', 'outrageous',
+        'disappointed', 'angry', 'mad', 'furious', 'upset', 'annoyed', 'frustrated',
+        'waste', 'useless', 'pointless', 'meaningless', 'worthless', 'fail', 'failed'
+    ]
 
-        self.negative_keywords = [
-            'hate', 'terrible', 'awful', 'horrible', 'disgusting', 'pathetic', 'stupid',
-            'dumb', 'idiotic', 'moronic', 'ridiculous', 'absurd', 'nonsense', 'crazy',
-            'wrong', 'false', 'lie', 'lies', 'fake', 'fraud', 'scam', 'bullshit', 'bs',
-            'disagree', 'no', 'never', 'impossible', 'ridiculous', 'outrageous',
-            'disappointed', 'angry', 'mad', 'furious', 'upset', 'annoyed', 'frustrated',
-            'waste', 'useless', 'pointless', 'meaningless', 'worthless', 'fail', 'failed'
-        ]
-
-    def get_post_details(self, post_id: str) -> Dict:
-        """Get details about a specific Threads post"""
-        fields = "id,text,username,timestamp,media_type,media_url,permalink"
-        url = f"{self.base_url}/{post_id}"
-        params = {"fields": fields}
-
-        response = requests.get(url, headers=self.headers, params=params)
-        response.raise_for_status()
-        return response.json()
-
-    def get_replies(self, post_id: str, limit: int = 100) -> List[Dict]:
-        """Fetch all replies to a specific Threads post"""
-        all_replies = []
-        next_page = None
-
-        while True:
-            url = f"{self.base_url}/{post_id}/replies"
-            params = {
-                "fields": "id,text,username,timestamp,permalink,reply_count",
-                "limit": min(limit, 100)
-            }
-
-            if next_page:
-                params["after"] = next_page
-
-            try:
-                response = requests.get(url, headers=self.headers, params=params)
-                response.raise_for_status()
-                data = response.json()
-
-                if "data" in data:
-                    all_replies.extend(data["data"])
-
-                if "paging" in data and "next" in data["paging"]:
-                    next_url = data["paging"]["next"]
-                    if "after=" in next_url:
-                        next_page = next_url.split("after=")[1].split("&")[0]
-                    else:
-                        break
-                else:
-                    break
-
-                time.sleep(0.5)  # Rate limiting
-
-            except requests.exceptions.RequestException as e:
-                print(f"Error fetching replies: {e}")
-                break
-
-        return all_replies
-
-    def extract_features(self, text: str) -> Dict:
-        """Extract enhanced features from text for sentiment analysis"""
+    def count_keywords(text, keywords):
+        """Count keyword matches in text"""
         if not text:
-            return {
-                'cleaned_text': '',
-                'emojis': '',
-                'emoji_count': 0,
-                'has_question': False,
-                'has_exclamation': False,
-                'has_caps': False,
-                'word_count': 0,
-                'char_count': 0,
-                'positive_keywords': 0,
-                'negative_keywords': 0
-            }
+            return 0
+        text_lower = text.lower()
+        return sum(1 for keyword in keywords if keyword in text_lower)
 
-        # Clean text and extract emojis
+    def extract_emoji_count(text):
+        """Count emojis in text"""
+        if not text:
+            return 0
         emoji_pattern = re.compile(
             "["
             "\U0001F600-\U0001F64F"  # emoticons
@@ -125,7 +58,6 @@ class OptimizedThreadsAnalyzer:
             "\U0001F680-\U0001F6FF"  # transport & map
             "\U0001F1E0-\U0001F1FF"  # flags
             "\U00002500-\U00002BEF"  # chinese char
-            "\U00002702-\U000027B0"
             "\U00002702-\U000027B0"
             "\U000024C2-\U0001F251"
             "\U0001f926-\U0001f937"
@@ -139,113 +71,56 @@ class OptimizedThreadsAnalyzer:
             "\ufe0f"
             "\u3030"
             "]+", flags=re.UNICODE)
+        return len(emoji_pattern.findall(text))
 
-        emojis = emoji_pattern.findall(text)
-        cleaned_text = emoji_pattern.sub('', text).strip()
-
-        # Count keyword matches (case insensitive)
-        text_lower = text.lower()
-        positive_count = sum(1 for keyword in self.positive_keywords if keyword in text_lower)
-        negative_count = sum(1 for keyword in self.negative_keywords if keyword in text_lower)
-
-        return {
-            'cleaned_text': cleaned_text,
-            'emojis': ''.join(emojis),
-            'emoji_count': len(emojis),
-            'has_question': '?' in text,
-            'has_exclamation': '!' in text,
-            'has_caps': any(word.isupper() and len(word) > 2 for word in text.split()),
-            'word_count': len(cleaned_text.split()) if cleaned_text else 0,
-            'char_count': len(text),
-            'positive_keywords': positive_count,
-            'negative_keywords': negative_count
-        }
-
-    def analyze_sentiment_optimized(self, text: str, features: Dict) -> Dict:
-        """
-        Optimized sentiment analysis with tighter thresholds and context awareness
-
-        Key improvements:
-        1. Tighter neutral zone (±0.05 instead of ±0.1)
-        2. Context-aware signals (emojis, punctuation, keywords)
-        3. Confidence scoring
-        4. More decisive classification
-        """
+    def classify_sentiment_fixed(text):
+        """Fixed sentiment classification logic"""
         if not text or not text.strip():
             return {
-                'vader_compound': 0.0,
-                'vader_sentiment': 'neutral',
-                'textblob_polarity': 0.0,
-                'textblob_sentiment': 'neutral',
-                'combined_sentiment_score': 0.0,
-                'optimized_sentiment': 'neutral',
-                'confidence': 'low',
-                'optimization_applied': False
+                'vader_compound_fixed': 0.0,
+                'textblob_polarity_fixed': 0.0,
+                'combined_score_fixed': 0.0,
+                'final_sentiment_fixed': 'neutral',
+                'confidence_fixed': 'low',
+                'positive_keywords_fixed': 0,
+                'negative_keywords_fixed': 0,
+                'emoji_count_fixed': 0
             }
 
         # VADER analysis
-        vader_scores = self.vader_analyzer.polarity_scores(text)
+        vader_scores = vader_analyzer.polarity_scores(text)
         vader_compound = vader_scores['compound']
-
-        if vader_compound >= 0.05:
-            vader_sentiment = 'positive'
-        elif vader_compound <= -0.05:
-            vader_sentiment = 'negative'
-        else:
-            vader_sentiment = 'neutral'
 
         # TextBlob analysis
         blob = TextBlob(text)
         textblob_polarity = blob.sentiment.polarity
-        textblob_subjectivity = blob.sentiment.subjectivity
 
-        if textblob_polarity > 0.1:
-            textblob_sentiment = 'positive'
-        elif textblob_polarity < -0.1:
-            textblob_sentiment = 'negative'
-        else:
-            textblob_sentiment = 'neutral'
-
-        # Combined score (weighted average)
+        # Combined score
         combined_score = (vader_compound * 0.6) + (textblob_polarity * 0.4)
 
-        # OPTIMIZED CLASSIFICATION with tighter thresholds
-        # Phase 1: Tighter neutral zone
+        # Count features
+        positive_count = count_keywords(text, positive_keywords)
+        negative_count = count_keywords(text, negative_keywords)
+        emoji_count = extract_emoji_count(text)
+
+        # Base classification
         if combined_score > 0.05:
-            optimized_sentiment = 'positive'
+            final_sentiment = 'positive'
         elif combined_score < -0.05:
-            optimized_sentiment = 'negative'
+            final_sentiment = 'negative'
         else:
-            optimized_sentiment = 'neutral'
+            final_sentiment = 'neutral'
 
-        # Phase 2: Context-aware enhancement
-        optimization_applied = False
+        # Context-aware adjustments for borderline cases
+        if final_sentiment == 'neutral' and abs(combined_score) > 0.02:
+            if positive_count > negative_count and positive_count > 0:
+                final_sentiment = 'positive'
+            elif negative_count > positive_count and negative_count > 0:
+                final_sentiment = 'negative'
+            elif emoji_count > 0 and combined_score > 0:
+                final_sentiment = 'positive'
 
-        # If we're in the tight neutral zone but have contextual signals, be more decisive
-        if optimized_sentiment == 'neutral' and abs(combined_score) > 0.02:
-
-            # Positive context signals
-            positive_signals = (
-                    (features['positive_keywords'] > 0) or
-                    (features['emoji_count'] > 0 and combined_score > 0) or
-                    (features['has_exclamation'] and combined_score > 0)
-            )
-
-            # Negative context signals
-            negative_signals = (
-                    (features['negative_keywords'] > 0) or
-                    (features['has_caps'] and combined_score < 0) or
-                    (combined_score < -0.03)
-            )
-
-            if positive_signals and not negative_signals:
-                optimized_sentiment = 'positive'
-                optimization_applied = True
-            elif negative_signals and not positive_signals:
-                optimized_sentiment = 'negative'
-                optimization_applied = True
-
-        # Confidence scoring
+        # Confidence
         abs_score = abs(combined_score)
         if abs_score > 0.3:
             confidence = 'high'
@@ -255,180 +130,90 @@ class OptimizedThreadsAnalyzer:
             confidence = 'low'
 
         return {
-            'vader_compound': vader_compound,
-            'vader_positive': vader_scores['pos'],
-            'vader_negative': vader_scores['neg'],
-            'vader_neutral': vader_scores['neu'],
-            'vader_sentiment': vader_sentiment,
-            'textblob_polarity': textblob_polarity,
-            'textblob_subjectivity': textblob_subjectivity,
-            'textblob_sentiment': textblob_sentiment,
-            'combined_sentiment_score': combined_score,
-            'optimized_sentiment': optimized_sentiment,
-            'confidence': confidence,
-            'optimization_applied': optimization_applied
+            'vader_compound_fixed': vader_compound,
+            'textblob_polarity_fixed': textblob_polarity,
+            'combined_score_fixed': combined_score,
+            'final_sentiment_fixed': final_sentiment,
+            'confidence_fixed': confidence,
+            'positive_keywords_fixed': positive_count,
+            'negative_keywords_fixed': negative_count,
+            'emoji_count_fixed': emoji_count
         }
 
-    def analyze_replies_optimized(self, replies: List[Dict]) -> pd.DataFrame:
-        """Analyze replies with optimized sentiment classification"""
-        analysis_results = []
+    # Apply fixed sentiment analysis
+    print("Applying fixed sentiment analysis...")
 
-        print(f"Analyzing {len(replies)} replies with optimized sentiment classification...")
+    sentiment_results = []
+    for i, row in df.iterrows():
+        if i % 100 == 0:
+            print(f"Progress: {i}/{len(df)}")
 
-        for i, reply in enumerate(replies):
-            if i % 50 == 0:
-                print(f"Progress: {i}/{len(replies)} replies analyzed")
+        text = row.get('text', '')
+        result = classify_sentiment_fixed(text)
+        sentiment_results.append(result)
 
-            # Extract features
-            text = reply.get('text', '')
-            features = self.extract_features(text)
+    # Add results to dataframe
+    sentiment_df = pd.DataFrame(sentiment_results)
 
-            # Perform optimized sentiment analysis
-            sentiment_analysis = self.analyze_sentiment_optimized(text, features)
+    # Combine with original data
+    df_fixed = pd.concat([df, sentiment_df], axis=1)
 
-            # Combine all data
-            result = {
-                **reply,
-                'reply_length': len(text),
-                'has_text': bool(text.strip()),
-                'is_nested': False,  # Could be enhanced to detect nested replies
-                **features,
-                **sentiment_analysis,
-                'hour': datetime.fromisoformat(reply['timestamp'].replace('Z', '+00:00')).hour if reply.get(
-                    'timestamp') else None
-            }
+    # Save fixed results
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    output_file = csv_file_path.replace('.csv', f'_FIXED_{timestamp}.csv')
+    df_fixed.to_csv(output_file, index=False)
 
-            analysis_results.append(result)
+    print(f"\nFixed analysis saved to: {output_file}")
 
-        df = pd.DataFrame(analysis_results)
+    # Generate report
+    sentiment_counts = df_fixed['final_sentiment_fixed'].value_counts()
+    print(f"\n=== FIXED SENTIMENT ANALYSIS REPORT ===")
+    print(f"Total replies: {len(df_fixed)}")
 
-        # Convert timestamp if present
-        if 'timestamp' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
+    print(f"\nSentiment distribution:")
+    for sentiment, count in sentiment_counts.items():
+        pct = (count / len(df_fixed)) * 100
+        print(f"  {sentiment}: {count} ({pct:.1f}%)")
 
-        print(f"Analysis complete! Processed {len(df)} replies.")
-        return df
-
-    def generate_optimization_report(self, df: pd.DataFrame) -> Dict:
-        """Generate a report on the optimization improvements"""
-
-        # Compare original vs optimized classifications
-        original_counts = df['vader_sentiment'].value_counts()
-        optimized_counts = df['optimized_sentiment'].value_counts()
-
-        # Calculate improvements
-        neutral_reduction = original_counts.get('neutral', 0) - optimized_counts.get('neutral', 0)
-        neutral_reduction_pct = (neutral_reduction / original_counts.get('neutral', 1)) * 100
-
-        reclassified = df[df['vader_sentiment'] != df['optimized_sentiment']]
-        optimization_applied_count = df['optimization_applied'].sum()
-
-        confidence_dist = df['confidence'].value_counts()
-
-        report = {
-            'total_replies': len(df),
-            'original_distribution': original_counts.to_dict(),
-            'optimized_distribution': optimized_counts.to_dict(),
-            'neutral_reduction': neutral_reduction,
-            'neutral_reduction_percentage': neutral_reduction_pct,
-            'reclassified_count': len(reclassified),
-            'reclassified_percentage': (len(reclassified) / len(df)) * 100,
-            'optimization_applied_count': optimization_applied_count,
-            'confidence_distribution': confidence_dist.to_dict(),
-            'average_confidence_score': df['combined_sentiment_score'].abs().mean()
-        }
-
-        return report
-
-
-def main_optimized():
-    """Main execution function with optimized analysis"""
-    print("=== OPTIMIZED THREADS SENTIMENT ANALYZER ===\n")
-
-    # Load access token
-    access_token = os.getenv('THREADS_ACCESS_TOKEN')
-    post_id = os.getenv('THREADS_POST_ID')
-
-    if not access_token or access_token == 'your_access_token_here':
-        print("Please add your Threads API access token to the .env file")
-        return
-
-    # Initialize the optimized analyzer
-    analyzer = OptimizedThreadsAnalyzer(access_token)
-
-    try:
-        if not post_id:
-            print("No specific post ID provided. Please set THREADS_POST_ID in your .env file")
-            return
-
-        # Fetch post details
-        print(f"Fetching details for post {post_id}...")
-        post_details = analyzer.get_post_details(post_id)
-        print(f"Post text: {post_details.get('text', 'No text')[:100]}...")
-
-        # Fetch replies
-        print(f"Fetching replies...")
-        replies = analyzer.get_replies(post_id)
-
-        if not replies:
-            print("No replies found for this post")
-            return
-
-        print(f"Found {len(replies)} replies")
-
-        # Analyze with optimized sentiment classification
-        df = analyzer.analyze_replies_optimized(replies)
-
-        # Generate optimization report
-        report = analyzer.generate_optimization_report(df)
-
-        # Save results
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"threads_optimized_analysis_{post_id}_{timestamp}.csv"
-        df.to_csv(filename, index=False)
-        print(f"\nOptimized analysis saved to {filename}")
-
-        # Display optimization report
-        print("\n=== OPTIMIZATION REPORT ===")
-        print(f"Total replies analyzed: {report['total_replies']}")
-        print(f"Reclassified replies: {report['reclassified_count']} ({report['reclassified_percentage']:.1f}%)")
+    # Compare with original if available
+    if 'final_sentiment' in df.columns:
+        original_counts = df['final_sentiment'].value_counts()
+        print(f"\nComparison with original:")
         print(
-            f"Neutral reduction: {report['neutral_reduction']} replies ({report['neutral_reduction_percentage']:.1f}%)")
-        print(f"Optimization signals applied: {report['optimization_applied_count']}")
+            f"Original neutral: {original_counts.get('neutral', 0)} -> Fixed neutral: {sentiment_counts.get('neutral', 0)}")
+        print(
+            f"Original positive: {original_counts.get('positive', 0)} -> Fixed positive: {sentiment_counts.get('positive', 0)}")
+        print(
+            f"Original negative: {original_counts.get('negative', 0)} -> Fixed negative: {sentiment_counts.get('negative', 0)}")
 
-        print(f"\nOriginal distribution:")
-        for sentiment, count in report['original_distribution'].items():
-            pct = (count / report['total_replies']) * 100
-            print(f"  {sentiment}: {count} ({pct:.1f}%)")
+    # Show sample improvements
+    print(f"\n=== SAMPLE CLASSIFICATIONS ===")
+    for sentiment in ['positive', 'negative', 'neutral']:
+        sample = df_fixed[df_fixed['final_sentiment_fixed'] == sentiment].head(2)
+        if not sample.empty:
+            print(f"\nSample {sentiment.upper()} replies:")
+            for _, row in sample.iterrows():
+                score = row.get('combined_score_fixed', 0)
+                confidence = row.get('confidence_fixed', 'unknown')
+                text = str(row.get('text', ''))[:80]
+                print(f"  Score: {score:.3f} ({confidence}) - \"{text}...\"")
 
-        print(f"\nOptimized distribution:")
-        for sentiment, count in report['optimized_distribution'].items():
-            pct = (count / report['total_replies']) * 100
-            print(f"  {sentiment}: {count} ({pct:.1f}%)")
-
-        print(f"\nConfidence distribution:")
-        for conf, count in report['confidence_distribution'].items():
-            pct = (count / report['total_replies']) * 100
-            print(f"  {conf}: {count} ({pct:.1f}%)")
-
-        print(f"\nAverage sentiment score magnitude: {report['average_confidence_score']:.3f}")
-
-        # Show sample reclassifications
-        reclassified_sample = df[df['vader_sentiment'] != df['optimized_sentiment']].head(5)
-        if not reclassified_sample.empty:
-            print(f"\n=== SAMPLE RECLASSIFICATIONS ===")
-            for _, row in reclassified_sample.iterrows():
-                print(f"\nScore: {row['combined_sentiment_score']:.3f}")
-                print(
-                    f"Change: {row['vader_sentiment']} → {row['optimized_sentiment']} ({row['confidence']} confidence)")
-                if row['optimization_applied']:
-                    print("✓ Context optimization applied")
-                print(f"Text: \"{row['text'][:80]}...\"")
-
-    except Exception as e:
-        print(f"Error in optimized analysis: {e}")
-        return
+    return df_fixed
 
 
 if __name__ == "__main__":
-    main_optimized()
+    import sys
+
+    if len(sys.argv) != 2:
+        print("Usage: python csv_sentiment_fixer.py <path_to_csv_file>")
+        print("Example: python csv_sentiment_fixer.py threads_replies_18087086674818268_20250825_191726_analyzed.csv")
+        sys.exit(1)
+
+    csv_file = sys.argv[1]
+    try:
+        fixed_df = fix_sentiment_analysis(csv_file)
+        print(f"\n✅ Successfully fixed sentiment analysis!")
+        print(f"Use the new CSV file ending in '_FIXED_' for your visualizations.")
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        sys.exit(1)
