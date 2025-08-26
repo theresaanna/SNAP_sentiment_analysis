@@ -257,8 +257,8 @@ THREADS_ACCESS_TOKEN=your_access_token_here
 THREADS_POST_ID=
 """
 
-    if not os.path.exists('.env'):
-        with open('.env', 'w') as f:
+    if not os.path.exists('../.env'):
+        with open('../.env', 'w') as f:
             f.write(env_template)
         print("Created .env file template. Please add your access token.")
     else:
@@ -392,7 +392,7 @@ def main():
     print("=== THREADS REPLY FETCHER (FIXED VERSION) ===\n")
 
     # Check for .env file
-    if not os.path.exists('.env'):
+    if not os.path.exists('../.env'):
         print("No .env file found. Creating template...")
         create_env_file()
         setup_api_permissions()
