@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Sentiment Analysis Results Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.3rem;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .file-upload {
+            margin-top: 25px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            display: inline-block;
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .file-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            font-size: 1.3rem;
+            color: #666;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .error {
+            background: #ff6b6b;
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .explanation-box {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border-left: 5px solid #667eea;
+        }
+
+        .explanation-box h2 {
+            color: #667eea;
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .explanation-box p {
+            font-size: 1.1rem;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            transition: transform 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: #667eea;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .stat-description {
+            font-size: 0.9rem;
+            color: #888;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+
+        .chart-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .chart-description {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 20px;
+            text-align: center;
+            font-style: italic;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .insights-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+
+        .insights-section h2 {
+            color: #667eea;
+            font-size: 2rem;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .insight-item {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .insight-item h3 {
+            color: #333;
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+        }
+
+        .insight-item p {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .model-performance {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+
+        .model-info {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+        }
+
+        .model-info h2 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        .accuracy-bar {
+            background: rgba(255, 255, 255, 0.3);
+            height: 10px;
+            border-radius: 5px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        .accuracy-fill {
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 5px;
+            transition: width 1s ease;
+        }
+
+        .data-quality {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .quality-metric {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .quality-score {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .quality-excellent { color: #22c55e; }
+        .quality-good { color: #eab308; }
+        .quality-poor { color: #ef4444; }
+
+        .samples-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+
+        .sample-item {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .sample-text {
+            font-style: italic;
+            color: #444;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .sample-prediction {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sentiment-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .sentiment-positive { background: #dcfce7; color: #166534; }
+        .sentiment-negative { background: #fee2e2; color: #991b1b; }
+        .sentiment-neutral { background: #f3f4f6; color: #374151; }
+
+        .confidence-score {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 15px; }
+            .header h1 { font-size: 2.2rem; }
+            .charts-section { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 ML Sentiment Analysis Dashboard</h1>
+            <p>Comprehensive Analysis of Machine Learning Sentiment Predictions</p>
+            <div class="file-upload">
+                <input type="file" id="csvFile" class="file-input" accept=".csv">
+                <label for="csvFile" class="file-label">📊 Load ML Results CSV</label>
+            </div>
+            <p style="margin-top: 15px; font-size: 1rem; color: #888;">
+                Upload your ML analysis results to see detailed insights and visualizations
+            </p>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <p>🔄 Loading and analyzing your data...</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="content" style="display: none;">
+
+            <div class="explanation-box">
+                <h2>📋 What This Dashboard Shows</h2>
+                <p><strong>This dashboard analyzes the results from your machine learning sentiment analysis.</strong> It provides comprehensive insights into how well your trained model performed and what patterns exist in your data.</p>
+                <p><strong>Key Metrics Explained:</strong></p>
+                <ul style="margin: 10px 0 0 30px;">
+                    <li><strong>Training Accuracy:</strong> How often the ML model agreed with your manual tags during training</li>
+                    <li><strong>Confidence Scores:</strong> How certain the model was about each prediction (0-100%)</li>
+                    <li><strong>Sentiment Distribution:</strong> The overall breakdown of positive, negative, and neutral content</li>
+                    <li><strong>Model Performance:</strong> Indicators of how reliable and robust your trained model is</li>
+                </ul>
+            </div>
+
+            <div class="stats-grid" id="statsGrid"></div>
+
+            <div class="model-performance">
+                <div class="model-info">
+                    <h2>🎯 Model Performance Overview</h2>
+                    <p id="modelDescription">Your machine learning model's performance and reliability metrics</p>
+                    <div class="accuracy-bar">
+                        <div class="accuracy-fill" id="accuracyFill"></div>
+                    </div>
+                    <p id="accuracyText">Loading performance data...</p>
+                </div>
+                <div class="data-quality" id="qualityMetrics"></div>
+            </div>
+
+            <div class="charts-section">
+                <div class="chart-container">
+                    <div class="chart-title">📊 Sentiment Distribution</div>
+                    <div class="chart-description">Overall breakdown of sentiment predictions across your entire dataset</div>
+                    <div class="chart-wrapper">
+                        <canvas id="sentimentChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">🎯 Confidence Score Distribution</div>
+                    <div class="chart-description">How confident the model was in its predictions (higher is better)</div>
+                    <div class="chart-wrapper">
+                        <canvas id="confidenceChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">⚖️ Training vs Predictions Comparison</div>
+                    <div class="chart-description">Comparison between your manual tags and model predictions</div>
+                    <div class="chart-wrapper">
+                        <canvas id="comparisonChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">📈 Confidence by Sentiment</div>
+                    <div class="chart-description">Average confidence levels for each sentiment category</div>
+                    <div class="chart-wrapper">
+                        <canvas id="confidenceBySentimentChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insights-section">
+                <h2>💡 Key Insights & Analysis</h2>
+                <div id="insights"></div>
+            </div>
+
+            <div class="samples-section">
+                <h2>📝 Sample Predictions</h2>
+                <p style="text-align: center; color: #666; margin-bottom: 25px;">
+                    Representative examples of your model's predictions with confidence scores
+                </p>
+                <div id="samples"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let data = [];
+        let manualTagColumn = null;
+
+        document.getElementById('csvFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('content').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const csv = event.target.result;
+                    const parsed = Papa.parse(csv, {
+                        header: true,
+                        dynamicTyping: true,
+                        skipEmptyLines: true
+                    });
+
+                    data = parsed.data.filter(row => row.text && row.text.trim());
+
+                    if (data.length === 0) {
+                        throw new Error('No valid data found in CSV file.');
+                    }
+
+                    // Find manual tag column
+                    const tagColumns = ['manual_sentiment', 'tagged_sentiment', 'sentiment', 'label'];
+                    manualTagColumn = tagColumns.find(col =>
+                        col in data[0] && data.some(row => row[col] && row[col].trim())
+                    );
+
+                    console.log(`Loaded ${data.length} rows`);
+                    console.log(`Manual tag column: ${manualTagColumn || 'None found'}`);
+
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('content').style.display = 'block';
+
+                    generateDashboard();
+
+                } catch (error) {
+                    console.error('Error processing file:', error);
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('error').style.display = 'block';
+                    document.getElementById('error').textContent = `Error processing file: ${error.message}`;
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function generateDashboard() {
+            generateStats();
+            generateCharts();
+            generateInsights();
+            generateSamples();
+            updateModelPerformance();
+        }
+
+        function generateStats() {
+            const totalRows = data.length;
+            const mlSentimentData = data.filter(row => row.ml_sentiment);
+
+            const sentimentCounts = {
+                positive: mlSentimentData.filter(row => row.ml_sentiment === 'positive').length,
+                negative: mlSentimentData.filter(row => row.ml_sentiment === 'negative').length,
+                neutral: mlSentimentData.filter(row => row.ml_sentiment === 'neutral').length
+            };
+
+            const avgConfidence = mlSentimentData.reduce((sum, row) => sum + (row.ml_confidence || 0), 0) / mlSentimentData.length;
+            const highConfidence = mlSentimentData.filter(row => (row.ml_confidence || 0) > 0.8).length;
+
+            let trainingAccuracy = 0;
+            if (manualTagColumn) {
+                const trainingData = data.filter(row => row[manualTagColumn] && row.ml_sentiment);
+                const correct = trainingData.filter(row =>
+                    row[manualTagColumn].toLowerCase() === row.ml_sentiment
+                ).length;
+                trainingAccuracy = trainingData.length > 0 ? (correct / trainingData.length) : 0;
+            }
+
+            const stats = [
+                {
+                    number: totalRows.toLocaleString(),
+                    label: 'Total Records',
+                    description: 'Total number of text entries analyzed'
+                },
+                {
+                    number: `${sentimentCounts.positive.toLocaleString()} (${((sentimentCounts.positive/totalRows)*100).toFixed(1)}%)`,
+                    label: 'Positive Sentiment',
+                    description: 'Records classified as positive'
+                },
+                {
+                    number: `${sentimentCounts.negative.toLocaleString()} (${((sentimentCounts.negative/totalRows)*100).toFixed(1)}%)`,
+                    label: 'Negative Sentiment',
+                    description: 'Records classified as negative'
+                },
+                {
+                    number: `${sentimentCounts.neutral.toLocaleString()} (${((sentimentCounts.neutral/totalRows)*100).toFixed(1)}%)`,
+                    label: 'Neutral Sentiment',
+                    description: 'Records classified as neutral'
+                },
+                {
+                    number: `${(avgConfidence * 100).toFixed(1)}%`,
+                    label: 'Average Confidence',
+                    description: 'Model\'s average certainty in predictions'
+                },
+                {
+                    number: `${highConfidence.toLocaleString()} (${((highConfidence/totalRows)*100).toFixed(1)}%)`,
+                    label: 'High Confidence',
+                    description: 'Predictions with >80% confidence'
+                }
+            ];
+
+            if (manualTagColumn) {
+                stats.push({
+                    number: `${(trainingAccuracy * 100).toFixed(1)}%`,
+                    label: 'Training Accuracy',
+                    description: 'Agreement between manual tags and ML predictions'
+                });
+            }
+
+            const statsGrid = document.getElementById('statsGrid');
+            statsGrid.innerHTML = stats.map(stat => `
+                <div class="stat-card">
+                    <div class="stat-number">${stat.number}</div>
+                    <div class="stat-label">${stat.label}</div>
+                    <div class="stat-description">${stat.description}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateModelPerformance() {
+            const mlData = data.filter(row => row.ml_sentiment);
+            const avgConfidence = mlData.reduce((sum, row) => sum + (row.ml_confidence || 0), 0) / mlData.length;
+
+            let trainingAccuracy = 0;
+            let trainingSize = 0;
+
+            if (manualTagColumn) {
+                const trainingData = data.filter(row => row[manualTagColumn] && row.ml_sentiment);
+                const correct = trainingData.filter(row =>
+                    row[manualTagColumn].toLowerCase() === row.ml_sentiment
+                ).length;
+                trainingAccuracy = trainingData.length > 0 ? (correct / trainingData.length) : 0;
+                trainingSize = trainingData.length;
+            }
+
+            // Update accuracy bar
+            const accuracyFill = document.getElementById('accuracyFill');
+            const accuracyText = document.getElementById('accuracyText');
+
+            if (trainingAccuracy > 0) {
+                accuracyFill.style.width = `${trainingAccuracy * 100}%`;
+                accuracyText.textContent = `Training Accuracy: ${(trainingAccuracy * 100).toFixed(1)}% (${trainingSize} training samples)`;
+            } else {
+                accuracyFill.style.width = '0%';
+                accuracyText.textContent = 'No manual training data found for accuracy calculation';
+            }
+
+            // Update model description
+            const modelDesc = document.getElementById('modelDescription');
+            const modelType = mlData[0]?.model_type || 'Unknown';
+            modelDesc.textContent = `Model Type: ${modelType.charAt(0).toUpperCase() + modelType.slice(1)} | Average Confidence: ${(avgConfidence * 100).toFixed(1)}%`;
+
+            // Generate quality metrics
+            const qualityMetrics = document.getElementById('qualityMetrics');
+            const highConfPercentage = (mlData.filter(row => (row.ml_confidence || 0) > 0.8).length / mlData.length) * 100;
+
+            const metrics = [
+                {
+                    label: 'Confidence Quality',
+                    score: `${highConfPercentage.toFixed(1)}%`,
+                    class: highConfPercentage > 50 ? 'quality-excellent' : highConfPercentage > 30 ? 'quality-good' : 'quality-poor'
+                },
+                {
+                    label: 'Data Coverage',
+                    score: `${((mlData.length / data.length) * 100).toFixed(1)}%`,
+                    class: 'quality-excellent'
+                },
+                {
+                    label: 'Training Accuracy',
+                    score: trainingAccuracy > 0 ? `${(trainingAccuracy * 100).toFixed(1)}%` : 'N/A',
+                    class: trainingAccuracy > 0.8 ? 'quality-excellent' : trainingAccuracy > 0.6 ? 'quality-good' : 'quality-poor'
+                }
+            ];
+
+            qualityMetrics.innerHTML = metrics.map(metric => `
+                <div class="quality-metric">
+                    <div class="quality-score ${metric.class}">${metric.score}</div>
+                    <div>${metric.label}</div>
+                </div>
+            `).join('');
+        }
+
+        function generateCharts() {
+            generateSentimentChart();
+            generateConfidenceChart();
+            generateComparisonChart();
+            generateConfidenceBySentimentChart();
+        }
+
+        function generateSentimentChart() {
+            const mlData = data.filter(row => row.ml_sentiment);
+            const sentimentCounts = {
+                positive: mlData.filter(row => row.ml_sentiment === 'positive').length,
+                negative: mlData.filter(row => row.ml_sentiment === 'negative').length,
+                neutral: mlData.filter(row => row.ml_sentiment === 'neutral').length
+            };
+
+            const ctx = document.getElementById('sentimentChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Positive', 'Negative', 'Neutral'],
+                    datasets: [{
+                        data: [sentimentCounts.positive, sentimentCounts.negative, sentimentCounts.neutral],
+                        backgroundColor: ['#22c55e', '#ef4444', '#6b7280'],
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                font: { size: 14, weight: 'bold' }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return `${context.label}: ${context.parsed.toLocaleString()} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateConfidenceChart() {
+            const mlData = data.filter(row => row.ml_confidence != null);
+            const confidenceRanges = {
+                'Very High (90-100%)': mlData.filter(row => row.ml_confidence >= 0.9).length,
+                'High (80-89%)': mlData.filter(row => row.ml_confidence >= 0.8 && row.ml_confidence < 0.9).length,
+                'Medium (60-79%)': mlData.filter(row => row.ml_confidence >= 0.6 && row.ml_confidence < 0.8).length,
+                'Low (40-59%)': mlData.filter(row => row.ml_confidence >= 0.4 && row.ml_confidence < 0.6).length,
+                'Very Low (<40%)': mlData.filter(row => row.ml_confidence < 0.4).length
+            };
+
+            const ctx = document.getElementById('confidenceChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(confidenceRanges),
+                    datasets: [{
+                        label: 'Number of Predictions',
+                        data: Object.values(confidenceRanges),
+                        backgroundColor: ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444'],
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Number of Predictions' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = mlData.length;
+                                    const percentage = ((context.parsed.y / total) * 100).toFixed(1);
+                                    return `${context.parsed.y.toLocaleString()} predictions (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateComparisonChart() {
+            if (!manualTagColumn) {
+                const ctx = document.getElementById('comparisonChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['No Training Data'],
+                        datasets: [{
+                            label: 'No manual tags found',
+                            data: [0],
+                            backgroundColor: '#6b7280'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+                return;
+            }
+
+            const trainingData = data.filter(row => row[manualTagColumn] && row.ml_sentiment);
+
+            const manualCounts = {
+                positive: trainingData.filter(row => row[manualTagColumn].toLowerCase() === 'positive').length,
+                negative: trainingData.filter(row => row[manualTagColumn].toLowerCase() === 'negative').length,
+                neutral: trainingData.filter(row => row[manualTagColumn].toLowerCase() === 'neutral').length
+            };
+
+            const mlCounts = {
+                positive: trainingData.filter(row => row.ml_sentiment === 'positive').length,
+                negative: trainingData.filter(row => row.ml_sentiment === 'negative').length,
+                neutral: trainingData.filter(row => row.ml_sentiment === 'neutral').length
+            };
+
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Positive', 'Negative', 'Neutral'],
+                    datasets: [
+                        {
+                            label: 'Manual Tags',
+                            data: [manualCounts.positive, manualCounts.negative, manualCounts.neutral],
+                            backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                            borderColor: 'rgba(102, 126, 234, 1)',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'ML Predictions',
+                            data: [mlCounts.positive, mlCounts.negative, mlCounts.neutral],
+                            backgroundColor: 'rgba(118, 75, 162, 0.8)',
+                            borderColor: 'rgba(118, 75, 162, 1)',
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Number of Records' }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { font: { weight: 'bold' } }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed.y / total) * 100).toFixed(1);
+                                    return `${context.dataset.label}: ${context.parsed.y} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateConfidenceBySentimentChart() {
+            const mlData = data.filter(row => row.ml_sentiment && row.ml_confidence != null);
+
+            const confidenceBysentiment = {
+                positive: mlData.filter(row => row.ml_sentiment === 'positive').map(row => row.ml_confidence),
+                negative: mlData.filter(row => row.ml_sentiment === 'negative').map(row => row.ml_confidence),
+                neutral: mlData.filter(row => row.ml_sentiment === 'neutral').map(row => row.ml_confidence)
+            };
+
+            const avgConfidence = {
+                positive: confidenceBysentiment.positive.length > 0 ?
+                    confidenceBysentiment.positive.reduce((a, b) => a + b, 0) / confidenceBysentiment.positive.length : 0,
+                negative: confidenceBysentiment.negative.length > 0 ?
+                    confidenceBysentiment.negative.reduce((a, b) => a + b, 0) / confidenceBysentiment.negative.length : 0,
+                neutral: confidenceBysentiment.neutral.length > 0 ?
+                    confidenceBysentiment.neutral.reduce((a, b) => a + b, 0) / confidenceBysentiment.neutral.length : 0
+            };
+
+            const ctx = document.getElementById('confidenceBySentimentChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Positive', 'Negative', 'Neutral'],
+                    datasets: [{
+                        label: 'Average Confidence',
+                        data: [avgConfidence.positive, avgConfidence.negative, avgConfidence.neutral],
+                        backgroundColor: ['#22c55e', '#ef4444', '#6b7280'],
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            title: { display: true, text: 'Average Confidence Score' },
+                            ticks: {
+                                callback: function(value) {
+                                    return (value * 100).toFixed(0) + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Average Confidence: ${(context.parsed.y * 100).toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateInsights() {
+            const mlData = data.filter(row => row.ml_sentiment);
+            const totalRecords = data.length;
+
+            const sentimentCounts = {
+                positive: mlData.filter(row => row.ml_sentiment === 'positive').length,
+                negative: mlData.filter(row => row.ml_sentiment === 'negative').length,
+                neutral: mlData.filter(row => row.ml_sentiment === 'neutral').length
+            };
+
+            const avgConfidence = mlData.reduce((sum, row) => sum + (row.ml_confidence || 0), 0) / mlData.length;
+            const highConfidenceCount = mlData.filter(row => (row.ml_confidence || 0) > 0.8).length;
+            const lowConfidenceCount = mlData.filter(row => (row.ml_confidence || 0) < 0.5).length;
+
+            let trainingAccuracy = 0;
+            let trainingInsight = '';
+
+            if (manualTagColumn) {
+                const trainingData = data.filter(row => row[manualTagColumn] && row.ml_sentiment);
+                const correct = trainingData.filter(row =>
+                    row[manualTagColumn].toLowerCase() === row.ml_sentiment
+                ).length;
+                trainingAccuracy = trainingData.length > 0 ? (correct / trainingData.length) : 0;
+
+                if (trainingAccuracy > 0.85) {
+                    trainingInsight = '🎯 Excellent model performance! Your model shows very high accuracy on the training data, indicating reliable predictions.';
+                } else if (trainingAccuracy > 0.7) {
+                    trainingInsight = '👍 Good model performance. The model shows solid accuracy, with room for improvement through additional training data.';
+                } else if (trainingAccuracy > 0.5) {
+                    trainingInsight = '⚠️ Moderate performance. Consider adding more diverse training examples or trying different model architectures.';
+                } else {
+                    trainingInsight = '🔄 Low accuracy detected. The model may need more training data or different features to improve performance.';
+                }
+            }
+
+            const insights = [
+                {
+                    title: 'Overall Sentiment Landscape',
+                    content: `Your data shows ${((sentimentCounts.positive / totalRecords) * 100).toFixed(1)}% positive, ${((sentimentCounts.negative / totalRecords) * 100).toFixed(1)}% negative, and ${((sentimentCounts.neutral / totalRecords) * 100).toFixed(1)}% neutral content. ${sentimentCounts.positive > sentimentCounts.negative ? 'The overall sentiment leans positive' : sentimentCounts.negative > sentimentCounts.positive ? 'The overall sentiment leans negative' : 'Sentiment is fairly balanced'}, which ${sentimentCounts.positive > sentimentCounts.negative ? 'suggests generally favorable' : sentimentCounts.negative > sentimentCounts.positive ? 'indicates some concerning' : 'shows mixed'} patterns in your dataset.`
+                },
+                {
+                    title: 'Model Confidence Analysis',
+                    content: `The model achieved an average confidence of ${(avgConfidence * 100).toFixed(1)}%. ${highConfidenceCount} predictions (${((highConfidenceCount / mlData.length) * 100).toFixed(1)}%) have high confidence (>80%), while ${lowConfidenceCount} predictions (${((lowConfidenceCount / mlData.length) * 100).toFixed(1)}%) have low confidence (<50%). ${avgConfidence > 0.75 ? 'This indicates a well-trained model with reliable predictions.' : avgConfidence > 0.6 ? 'This suggests moderate model performance with room for improvement.' : 'This indicates the model may need additional training or different features.'}`
+                },
+                {
+                    title: 'Data Quality Assessment',
+                    content: `${((mlData.length / totalRecords) * 100).toFixed(1)}% of your records received ML predictions. The model processed ${mlData.length.toLocaleString()} out of ${totalRecords.toLocaleString()} total records. ${mlData.length === totalRecords ? 'Perfect data coverage achieved!' : `${totalRecords - mlData.length} records may have missing or invalid data that prevented processing.`}`
+                }
+            ];
+
+            if (trainingInsight) {
+                insights.splice(1, 0, {
+                    title: 'Training Performance',
+                    content: trainingInsight + ` Training accuracy: ${(trainingAccuracy * 100).toFixed(1)}% based on ${data.filter(row => row[manualTagColumn] && row.ml_sentiment).length} manually tagged examples.`
+                });
+            }
+
+            // Add actionable recommendations
+            const recommendations = {
+                title: 'Actionable Recommendations',
+                content: ''
+            };
+
+            let recText = [];
+            if (avgConfidence < 0.7) {
+                recText.push('• Consider adding more training examples to improve model confidence');
+            }
+            if (lowConfidenceCount > mlData.length * 0.3) {
+                recText.push('• Review low-confidence predictions for potential data quality issues');
+            }
+            if (trainingAccuracy < 0.8 && manualTagColumn) {
+                recText.push('• Add more diverse training examples to improve model accuracy');
+            }
+            if (sentimentCounts.positive === 0 || sentimentCounts.negative === 0 || sentimentCounts.neutral === 0) {
+                recText.push('• Consider balancing your dataset across all sentiment categories');
+            }
+
+            if (recText.length === 0) {
+                recText.push('• Your model is performing well! Consider monitoring performance over time');
+                recText.push('• Collect feedback on edge cases to further improve accuracy');
+            }
+
+            recommendations.content = recText.join('\n');
+            insights.push(recommendations);
+
+            const insightsContainer = document.getElementById('insights');
+            insightsContainer.innerHTML = insights.map(insight => `
+                <div class="insight-item">
+                    <h3>${insight.title}</h3>
+                    <p>${insight.content}</p>
+                </div>
+            `).join('');
+        }
+
+        function generateSamples() {
+            const mlData = data.filter(row => row.ml_sentiment && row.text);
+
+            // Get diverse samples: high confidence positive, negative, neutral, and some low confidence
+            const highConfPos = mlData.filter(row => row.ml_sentiment === 'positive' && (row.ml_confidence || 0) > 0.8);
+            const highConfNeg = mlData.filter(row => row.ml_sentiment === 'negative' && (row.ml_confidence || 0) > 0.8);
+            const highConfNeut = mlData.filter(row => row.ml_sentiment === 'neutral' && (row.ml_confidence || 0) > 0.8);
+            const lowConf = mlData.filter(row => (row.ml_confidence || 0) < 0.6);
+
+            const samples = [];
+
+            // Add samples from each category
+            if (highConfPos.length > 0) samples.push(highConfPos[Math.floor(Math.random() * highConfPos.length)]);
+            if (highConfNeg.length > 0) samples.push(highConfNeg[Math.floor(Math.random() * highConfNeg.length)]);
+            if (highConfNeut.length > 0) samples.push(highConfNeut[Math.floor(Math.random() * highConfNeut.length)]);
+            if (lowConf.length > 0) samples.push(lowConf[Math.floor(Math.random() * lowConf.length)]);
+
+            // Fill up to 6 samples with random ones
+            while (samples.length < 6 && samples.length < mlData.length) {
+                const randomSample = mlData[Math.floor(Math.random() * mlData.length)];
+                if (!samples.includes(randomSample)) {
+                    samples.push(randomSample);
+                }
+            }
+
+            const samplesContainer = document.getElementById('samples');
+            samplesContainer.innerHTML = samples.map((sample, index) => {
+                const manualTag = manualTagColumn && sample[manualTagColumn] ?
+                    ` (Manual: ${sample[manualTagColumn]})` : '';
+
+                return `
+                    <div class="sample-item">
+                        <div class="sample-text">"${sample.text.substring(0, 150)}${sample.text.length > 150 ? '...' : ''}"</div>
+                        <div class="sample-prediction">
+                            <div>
+                                <span class="sentiment-badge sentiment-${sample.ml_sentiment}">
+                                    ${sample.ml_sentiment.charAt(0).toUpperCase() + sample.ml_sentiment.slice(1)}
+                                </span>
+                                <span style="margin-left: 10px; color: #666; font-size: 0.9rem;">${manualTag}</span>
+                            </div>
+                            <div class="confidence-score">
+                                ${((sample.ml_confidence || 0) * 100).toFixed(1)}% confidence
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Fix the typo in variable name
+        function generateConfidenceBySentimentChart() {
+            const mlData = data.filter(row => row.ml_sentiment && row.ml_confidence != null);
+
+            const confidenceBysentiment = {
+                positive: mlData.filter(row => row.ml_sentiment === 'positive').map(row => row.ml_confidence),
+                negative: mlData.filter(row => row.ml_sentiment === 'negative').map(row => row.ml_confidence),
+                neutral: mlData.filter(row => row.ml_sentiment === 'neutral').map(row => row.ml_confidence)
+            };
+
+            const avgConfidence = {
+                positive: confidenceBysentiment.positive.length > 0 ?
+                    confidenceBysentiment.positive.reduce((a, b) => a + b, 0) / confidenceBysentiment.positive.length : 0,
+                negative: confidenceBysentiment.negative.length > 0 ?
+                    confidenceBysentiment.negative.reduce((a, b) => a + b, 0) / confidenceBysentiment.negative.length : 0,
+                neutral: confidenceBysentiment.neutral.length > 0 ?
+                    confidenceBysentiment.neutral.reduce((a, b) => a + b, 0) / confidenceBysentiment.neutral.length : 0
+            };
+
+            const ctx = document.getElementById('confidenceBySentimentChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Positive', 'Negative', 'Neutral'],
+                    datasets: [{
+                        label: 'Average Confidence',
+                        data: [avgConfidence.positive, avgConfidence.negative, avgConfidence.neutral],
+                        backgroundColor: ['#22c55e', '#ef4444', '#6b7280'],
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            title: { display: true, text: 'Average Confidence Score' },
+                            ticks: {
+                                callback: function(value) {
+                                    return (value * 100).toFixed(0) + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Average Confidence: ${(context.parsed.y * 100).toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1237,7 +1237,7 @@
         async function loadDefaultData() {
             try {
                 // Try to load the largest analyzed file
-                const filename = 'threads_comments_full_analyzed.csv';
+                const filename = 'threads_comments_full_knn_analyzed.csv';
                 const fileContent = await window.fs.readFile(filename, { encoding: 'utf8' });
 
                 const parsed = Papa.parse(fileContent, {

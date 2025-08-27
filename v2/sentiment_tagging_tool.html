@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentiment Tagging Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e7ff;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 10px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-top: 5px;
+        }
+
+        .text-display {
+            background: #f1f5f9;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .text-content {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            color: #334155;
+            text-align: center;
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+
+        .sentiment-buttons {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+
+        .sentiment-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        .positive { background: #22c55e; color: white; }
+        .negative { background: #ef4444; color: white; }
+        .neutral { background: #6b7280; color: white; }
+
+        .sentiment-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .control-btn {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .file-input {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .file-input input[type="file"] {
+            display: none;
+        }
+
+        .file-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.3s ease;
+        }
+
+        .file-label:hover {
+            transform: scale(1.05);
+        }
+
+        .export-section {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e2e8f0;
+        }
+
+        .export-btn {
+            padding: 12px 24px;
+            background: #22c55e;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .export-btn:hover {
+            background: #16a34a;
+            transform: translateY(-2px);
+        }
+
+        .export-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+
+        .keyboard-hints {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .keyboard-hints strong {
+            color: #667eea;
+        }
+
+        .completed {
+            text-align: center;
+            padding: 40px;
+            color: #22c55e;
+        }
+
+        .completed h2 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .sentiment-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .controls {
+                flex-wrap: wrap;
+            }
+
+            .container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📝 Sentiment Tagger</h1>
+            <p>Tag your text data for machine learning training</p>
+        </div>
+
+        <div class="file-input">
+            <input type="file" id="csvFile" accept=".csv">
+            <label for="csvFile" class="file-label">📂 Load CSV File</label>
+            <p style="margin-top: 10px; color: #64748b; font-size: 0.9rem;">
+                Select a CSV file with a 'text' column to start tagging
+            </p>
+        </div>
+
+        <div id="loadingDiv" class="loading" style="display: none;">
+            <p>Loading your data...</p>
+        </div>
+
+        <div id="taggingtool" style="display: none;">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-number" id="currentIndex">0</div>
+                    <div class="stat-label">Current</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="totalCount">0</div>
+                    <div class="stat-label">Total</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="taggedCount">0</div>
+                    <div class="stat-label">Tagged</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="remainingCount">0</div>
+                    <div class="stat-label">Remaining</div>
+                </div>
+            </div>
+
+            <div class="keyboard-hints">
+                <strong>Keyboard shortcuts:</strong> P = Positive, N = Negative, U = Neutral,
+                ← = Previous, → = Next, S = Skip
+            </div>
+
+            <div class="text-display">
+                <div class="text-content" id="textContent">
+                    Load a CSV file to start tagging...
+                </div>
+            </div>
+
+            <div class="sentiment-buttons">
+                <button class="sentiment-btn positive" onclick="tagSentiment('positive')" title="Shortcut: P">
+                    👍 Positive
+                </button>
+                <button class="sentiment-btn neutral" onclick="tagSentiment('neutral')" title="Shortcut: U">
+                    😐 Neutral
+                </button>
+                <button class="sentiment-btn negative" onclick="tagSentiment('negative')" title="Shortcut: N">
+                    👎 Negative
+                </button>
+            </div>
+
+            <div class="controls">
+                <button class="control-btn" onclick="previousItem()" title="Shortcut: ←">⬅️ Previous</button>
+                <button class="control-btn" onclick="skipItem()" title="Shortcut: S">⏭️ Skip</button>
+                <button class="control-btn" onclick="nextItem()" title="Shortcut: →">➡️ Next</button>
+            </div>
+
+            <div class="export-section">
+                <button class="export-btn" id="exportBtn" onclick="exportTaggedData()">
+                    💾 Export Tagged Data
+                </button>
+                <p style="margin-top: 10px; color: #64748b; font-size: 0.9rem;">
+                    Export your tagged data as CSV for machine learning
+                </p>
+            </div>
+        </div>
+
+        <div id="completedDiv" class="completed" style="display: none;">
+            <h2>🎉 All Done!</h2>
+            <p>You've tagged all items in your dataset.</p>
+            <button class="export-btn" onclick="exportTaggedData()" style="margin-top: 20px;">
+                💾 Download Results
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script>
+        let data = [];
+        let currentIndex = 0;
+        let taggedItems = new Map(); // Store tags by index
+
+        // Load CSV file
+        document.getElementById('csvFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('loadingDiv').style.display = 'block';
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const csv = event.target.result;
+                    const parsed = Papa.parse(csv, {
+                        header: true,
+                        skipEmptyLines: true
+                    });
+
+                    data = parsed.data.filter(row => row.text && row.text.trim());
+
+                    if (data.length === 0) {
+                        alert('No text column found or no valid data in the CSV file.');
+                        return;
+                    }
+
+                    // Check for existing sentiment tags
+                    data.forEach((row, index) => {
+                        if (row.sentiment || row.manual_sentiment || row.tagged_sentiment) {
+                            const existingTag = row.sentiment || row.manual_sentiment || row.tagged_sentiment;
+                            if (['positive', 'negative', 'neutral'].includes(existingTag.toLowerCase())) {
+                                taggedItems.set(index, existingTag.toLowerCase());
+                            }
+                        }
+                    });
+
+                    currentIndex = 0;
+                    document.getElementById('loadingDiv').style.display = 'none';
+                    document.getElementById('taggingtool').style.display = 'block';
+
+                    updateDisplay();
+
+                } catch (error) {
+                    alert('Error reading CSV file: ' + error.message);
+                    document.getElementById('loadingDiv').style.display = 'none';
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function updateDisplay() {
+            if (data.length === 0) return;
+
+            // Update stats
+            document.getElementById('currentIndex').textContent = currentIndex + 1;
+            document.getElementById('totalCount').textContent = data.length;
+            document.getElementById('taggedCount').textContent = taggedItems.size;
+            document.getElementById('remainingCount').textContent = data.length - taggedItems.size;
+
+            // Update progress bar
+            const progress = (taggedItems.size / data.length) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+
+            // Update text content
+            const currentText = data[currentIndex]?.text || 'No text available';
+            document.getElementById('textContent').textContent = currentText;
+
+            // Highlight current tag if exists
+            const currentTag = taggedItems.get(currentIndex);
+            document.querySelectorAll('.sentiment-btn').forEach(btn => {
+                btn.style.opacity = '1';
+                btn.style.transform = 'scale(1)';
+            });
+
+            if (currentTag) {
+                const currentBtn = document.querySelector(`.sentiment-btn.${currentTag}`);
+                if (currentBtn) {
+                    currentBtn.style.opacity = '0.7';
+                    currentBtn.style.transform = 'scale(1.05)';
+                }
+            }
+
+            // Check if completed
+            if (taggedItems.size === data.length) {
+                document.getElementById('taggingtool').style.display = 'none';
+                document.getElementById('completedDiv').style.display = 'block';
+            }
+
+            // Enable export if we have some tagged items
+            document.getElementById('exportBtn').disabled = taggedItems.size === 0;
+        }
+
+        function tagSentiment(sentiment) {
+            if (data.length === 0) return;
+
+            taggedItems.set(currentIndex, sentiment);
+            updateDisplay();
+
+            // Auto-advance to next untagged item
+            setTimeout(() => {
+                nextUntaggedItem();
+            }, 200);
+        }
+
+        function nextItem() {
+            if (currentIndex < data.length - 1) {
+                currentIndex++;
+                updateDisplay();
+            }
+        }
+
+        function previousItem() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateDisplay();
+            }
+        }
+
+        function nextUntaggedItem() {
+            let nextIndex = currentIndex + 1;
+
+            // Find next untagged item
+            while (nextIndex < data.length && taggedItems.has(nextIndex)) {
+                nextIndex++;
+            }
+
+            if (nextIndex < data.length) {
+                currentIndex = nextIndex;
+                updateDisplay();
+            } else {
+                // No more untagged items, go to first untagged or stay at current
+                for (let i = 0; i < data.length; i++) {
+                    if (!taggedItems.has(i)) {
+                        currentIndex = i;
+                        updateDisplay();
+                        return;
+                    }
+                }
+                // All tagged
+                updateDisplay();
+            }
+        }
+
+        function skipItem() {
+            nextUntaggedItem();
+        }
+
+        function exportTaggedData() {
+            if (taggedItems.size === 0) {
+                alert('No tagged data to export. Please tag some items first.');
+                return;
+            }
+
+            // Create export data
+            const exportData = data.map((row, index) => {
+                const tag = taggedItems.get(index);
+                return {
+                    ...row,
+                    manual_sentiment: tag || '',
+                    is_tagged: tag ? 'yes' : 'no'
+                };
+            });
+
+            // Convert to CSV
+            const csv = Papa.unparse(exportData);
+
+            // Download
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tagged_sentiment_data_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (data.length === 0) return;
+
+            switch(e.key.toLowerCase()) {
+                case 'p':
+                    e.preventDefault();
+                    tagSentiment('positive');
+                    break;
+                case 'n':
+                    e.preventDefault();
+                    tagSentiment('negative');
+                    break;
+                case 'u':
+                    e.preventDefault();
+                    tagSentiment('neutral');
+                    break;
+                case 'arrowleft':
+                    e.preventDefault();
+                    previousItem();
+                    break;
+                case 'arrowright':
+                    e.preventDefault();
+                    nextItem();
+                    break;
+                case 's':
+                    e.preventDefault();
+                    skipItem();
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>
