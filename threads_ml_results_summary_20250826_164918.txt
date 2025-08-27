@@ -1,0 +1,46 @@
+=== THREADS ML SENTIMENT ANALYSIS RESULTS ===
+
+MODEL PERFORMANCE COMPARISON:
+--------------------------------------------------
+
+GRADIENT_BOOSTING:
+  Cross-validation: 0.9829 (±0.0121)
+  Test accuracy: 0.9726
+  Precision (macro): 0.9619
+  Recall (macro): 0.9767
+  F1-score (macro): 0.9680
+
+RANDOM_FOREST:
+  Cross-validation: 0.9675 (±0.0113)
+  Test accuracy: 0.9589
+  Precision (macro): 0.9663
+  Recall (macro): 0.9408
+  F1-score (macro): 0.9507
+
+LOGISTIC_REGRESSION:
+  Cross-validation: 0.8477 (±0.0208)
+  Test accuracy: 0.8493
+  Precision (macro): 0.8323
+  Recall (macro): 0.8431
+  F1-score (macro): 0.8364
+
+SVM:
+  Cross-validation: 0.7997 (±0.0327)
+  Test accuracy: 0.7329
+  Precision (macro): 0.7553
+  Recall (macro): 0.7093
+  F1-score (macro): 0.7211
+
+KNN:
+  Cross-validation: 0.4520 (±0.0274)
+  Test accuracy: 0.5411
+  Precision (macro): 0.6828
+  Recall (macro): 0.5996
+  F1-score (macro): 0.5508
+
+NAIVE_BAYES:
+  Cross-validation: 0.5000 (±0.0301)
+  Test accuracy: 0.5000
+  Precision (macro): 0.5006
+  Recall (macro): 0.5227
+  F1-score (macro): 0.4919
