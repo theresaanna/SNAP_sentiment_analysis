@@ -335,7 +335,80 @@ class CSVSentimentAnalyzer:
 
             df = pd.DataFrame(feature_data)
 
-        return df
+    def save_individual_model_csvs(self, df: pd.DataFrame, base_filename: str):
+        """Save separate CSV files for each trained model"""
+        if not hasattr(self, 'all_trained_models') or len(self.all_trained_models) <= 1:
+            print("⚠️  No multiple models to save individually")
+            return []
+
+        saved_files = []
+        print(f"\n💾 Saving individual model CSV files...")
+
+        for model_name, model_info in self.all_trained_models.items():
+            # Create a dataframe with just this model's predictions
+            individual_df = df.copy()
+
+            # Keep only the basic columns and this model's specific columns
+            columns_to_keep = [
+                'text', 'username', 'timestamp', 'permalink',  # Original data
+                'cleaned_text', 'word_count', 'char_count', 'emoji_count',  # Features
+                'has_question', 'has_exclamation', 'has_caps',
+                'positive_keywords', 'negative_keywords'
+            ]
+
+            # Add manual tag if available
+            sentiment_columns = ['manual_sentiment', 'tagged_sentiment', 'sentiment', 'label']
+            for col in sentiment_columns:
+                if col in individual_df.columns:
+                    columns_to_keep.append(col)
+                    break
+
+            # Add this model's prediction columns
+            if model_name == self.model_name:
+                # This is the winning model - use the main prediction columns
+                model_columns = [
+                    'ml_sentiment', 'ml_confidence', 'model_type',
+                    'ml_prob_positive', 'ml_prob_negative', 'ml_prob_neutral'
+                ]
+            else:
+                # This is a non-winning model - use the model-specific columns
+                model_columns = [
+                    f'{model_name}_sentiment', f'{model_name}_confidence', f'{model_name}_type',
+                    f'{model_name}_prob_positive', f'{model_name}_prob_negative', f'{model_name}_prob_neutral'
+                ]
+
+            # Rename model-specific columns to standard names for consistency
+            if model_name != self.model_name:
+                rename_mapping = {
+                    f'{model_name}_sentiment': 'ml_sentiment',
+                    f'{model_name}_confidence': 'ml_confidence',
+                    f'{model_name}_type': 'model_type',
+                    f'{model_name}_prob_positive': 'ml_prob_positive',
+                    f'{model_name}_prob_negative': 'ml_prob_negative',
+                    f'{model_name}_prob_neutral': 'ml_prob_neutral'
+                }
+                individual_df = individual_df.rename(columns=rename_mapping)
+                model_columns = ['ml_sentiment', 'ml_confidence', 'model_type',
+                                 'ml_prob_positive', 'ml_prob_negative', 'ml_prob_neutral']
+
+            # Keep only the columns we want
+            available_columns = [col for col in columns_to_keep + model_columns if col in individual_df.columns]
+            individual_df = individual_df[available_columns]
+
+            # Add model metadata
+            individual_df['algorithm_name'] = model_name
+            individual_df['algorithm_type'] = model_info['type']
+            individual_df['test_accuracy'] = model_info['test_score']
+
+            # Save individual model CSV
+            model_filename = base_filename.replace('.csv', f'_{model_name}.csv')
+            individual_df.to_csv(model_filename, index=False)
+            saved_files.append(model_filename)
+
+            print(f"  📁 {model_name}: {model_filename}")
+
+        print(f"✅ Saved {len(saved_files)} individual model CSV files")
+        return saved_files
 
     def create_training_data_from_manual_tags(self, df: pd.DataFrame) -> tuple:
         """Create training data from manually tagged sentiment labels"""
@@ -531,10 +604,13 @@ class CSVSentimentAnalyzer:
         return results
 
     def train_all_models(self, X, y, labels, texts):
-        """Train all types of models"""
+        """Train all types of models and store ALL results"""
         print("\n" + "=" * 50)
         print("COMPREHENSIVE MODEL TRAINING")
         print("=" * 50)
+
+        # Store all trained models for later predictions
+        self.all_trained_models = {}
 
         # Traditional ML Models
         print("\n1. TRADITIONAL MACHINE LEARNING MODELS")
@@ -568,7 +644,14 @@ class CSVSentimentAnalyzer:
                 'cv_std': cv_scores.std(),
                 'test_score': test_score,
                 'model': model,
-                'type': 'traditional'
+                'type': name  # Use exact algorithm name instead of 'traditional'
+            }
+
+            # Store the trained model
+            self.all_trained_models[name] = {
+                'model': model,
+                'type': name,  # Use exact algorithm name
+                'test_score': test_score
             }
 
             print(f"CV Score: {cv_scores.mean():.3f} (+/- {cv_scores.std() * 2:.3f})")
@@ -590,8 +673,15 @@ class CSVSentimentAnalyzer:
             X_neural, y_categorical, y_encoded = self.prepare_neural_data(texts, labels)
             neural_results = self.train_neural_models(X_neural, y_categorical, y_encoded, texts)
 
-            # Check if any neural model is better
+            # Store neural models
             for name, result in neural_results.items():
+                self.all_trained_models[name] = {
+                    'model': result['model'],
+                    'type': name,  # Use exact neural model name instead of 'neural'
+                    'test_score': result['test_accuracy']
+                }
+
+                # Check if any neural model is better
                 if result['test_accuracy'] > best_score:
                     best_score = result['test_accuracy']
                     best_model = result['model']
@@ -603,13 +693,14 @@ class CSVSentimentAnalyzer:
         # Set the best model
         self.trained_model = best_model
         self.model_name = best_model_name
-        self.model_type = best_model_type
+        self.model_type = best_model_name  # Use exact algorithm name instead of generic type
 
         # Summary
         print("\n" + "=" * 50)
         print("FINAL RESULTS SUMMARY")
         print("=" * 50)
-        print(f"Best Model: {best_model_name} ({best_model_type})")
+        print(f"Best Model: {best_model_name}")
+        print(f"Algorithm Type: {best_model_name}")
         print(f"Best Score: {best_score:.3f}")
 
         print(f"\nTraditional ML Results:")
@@ -622,7 +713,7 @@ class CSVSentimentAnalyzer:
                 print(f"  {name}: {result['test_accuracy']:.3f}")
 
         # Detailed evaluation of best model
-        if best_model_type == 'traditional':
+        if best_model_name in traditional_results:
             y_pred = best_model.predict(X_test)
             print(f"\nDetailed evaluation of {best_model_name}:")
             print(classification_report(y_test, y_pred,
@@ -633,7 +724,7 @@ class CSVSentimentAnalyzer:
             'neural': neural_results,
             'best_model': best_model_name,
             'best_score': best_score,
-            'best_type': best_model_type
+            'best_algorithm': best_model_name  # Use exact algorithm name
         }
 
     def predict_sentiment(self, text: str, features: Dict) -> Dict:
@@ -704,7 +795,7 @@ class CSVSentimentAnalyzer:
             'ml_sentiment': sentiment,
             'ml_confidence': confidence,
             'ml_probabilities': prob_dict,
-            'model_type': 'traditional'
+            'model_type': self.model_type  # This will now be the exact algorithm name
         }
 
     def _predict_neural(self, text: str, features: Dict) -> Dict:
@@ -731,7 +822,7 @@ class CSVSentimentAnalyzer:
             'ml_sentiment': sentiment,
             'ml_confidence': confidence,
             'ml_probabilities': prob_dict,
-            'model_type': 'neural'
+            'model_type': self.model_type  # This will now be the exact neural model name
         }
 
     def analyze_csv(self, csv_file: str) -> pd.DataFrame:
@@ -739,12 +830,20 @@ class CSVSentimentAnalyzer:
         # Load and process CSV
         df = self.load_and_process_csv(csv_file)
 
+        # Check if loading failed
+        if df is None:
+            print("❌ Failed to load or process CSV file")
+            return None
+
         # Check for manual tags and train models
         sentiment_columns = ['manual_sentiment', 'tagged_sentiment', 'sentiment', 'label']
         has_manual_tags = any(col in df.columns and df[col].notna().sum() > 0 for col in sentiment_columns)
 
+        # Initialize to ensure we have the attribute
+        self.all_trained_models = {}
+
         if has_manual_tags:
-            print("\nFound manual sentiment tags - training models...")
+            print("\nFound manual sentiment tags - training ALL models...")
             X, y, labels = self.create_training_data_from_manual_tags(df)
 
             # Extract texts for neural training
@@ -760,11 +859,22 @@ class CSVSentimentAnalyzer:
                     if row['cleaned_text'] and row['cleaned_text'].strip():
                         texts.append(row['cleaned_text'])
 
-            print(f"Training models with {len(texts)} manually tagged samples...")
+            print(f"Training ALL models with {len(texts)} manually tagged samples...")
             model_results = self.train_all_models(X, y, labels, texts)
 
+            print(f"\nTrained {len(self.all_trained_models)} different algorithms:")
+            for model_name, model_info in self.all_trained_models.items():
+                print(f"  - {model_name} ({model_info['type']}): {model_info['test_score']:.3f} accuracy")
+
         else:
-            print("No manual sentiment tags found. Models cannot be trained.")
+            print("No manual sentiment tags found. Cannot train multiple models for comparison.")
+            # Still set a placeholder so the rest of the code doesn't break
+            if self.trained_model:
+                self.all_trained_models[self.model_name] = {
+                    'model': self.trained_model,
+                    'type': self.model_type,
+                    'test_score': 0.0
+                }
 
         # Predict sentiment for all rows
         print("\nPredicting sentiment for all rows...")
@@ -818,6 +928,8 @@ class CSVSentimentAnalyzer:
         # Convert timestamp if present
         if 'timestamp' in df.columns:
             df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+
+        return df
 
         print(f"\nML analysis complete! Processed {len(df)} rows.")
 
@@ -909,17 +1021,27 @@ def main():
         # Analyze the CSV
         df = analyzer.analyze_csv(csv_file)
 
+        # Check if analysis failed
+        if df is None:
+            print("❌ Analysis failed - please check your CSV file format")
+            return
+
         # Save results
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_file = f"ml_analysis_{timestamp}.csv"
-        df.to_csv(output_file, index=False)
-        print(f"\nResults saved to: {output_file}")
 
-        # Save model if trained
+        # Save the main combined CSV (winner + all model columns)
+        main_filename = f"ml_analysis_{timestamp}.csv"
+        df.to_csv(main_filename, index=False)
+        print(f"\n📊 Main analysis saved to: {main_filename}")
+
+        # Save individual model CSV files
+        individual_files = analyzer.save_individual_model_csvs(df, f"ml_individual_{timestamp}.csv")
+
+        # Save the trained model
         if analyzer.trained_model:
-            model_file = f"ml_model_{timestamp}.pkl"
-            analyzer.save_model(model_file)
-            print(f"Model saved to: {model_file}")
+            model_filename = f"ml_model_{timestamp}.pkl"
+            analyzer.save_model(model_filename)
+            print(f"🤖 Model saved to: {model_filename}")
 
         # Generate report
         report = analyzer.generate_report(df)
@@ -1004,9 +1126,13 @@ def main():
             print(f"Confidence: {row['ml_confidence']:.3f}")
 
         print(f"\n✅ Analysis complete!")
-        print(f"📁 Results: {output_file}")
+        print(f"📁 Main results: {main_filename}")
+        if individual_files:
+            print(f"📁 Individual models: {len(individual_files)} separate CSV files")
+            for file in individual_files:
+                print(f"   - {file}")
         if analyzer.trained_model:
-            print(f"🤖 Model: {model_file}")
+            print(f"🤖 Model: {model_filename}")
 
     except Exception as e:
         print(f"❌ Error: {e}")

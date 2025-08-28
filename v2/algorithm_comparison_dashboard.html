@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ML Algorithm Comparison Dashboard</title>
+    <title>ML Algorithm Analysis Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
+        /* SASS-inspired styling converted to CSS */
         * {
             margin: 0;
             padding: 0;
@@ -15,298 +16,208 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
-            min-height: 100vh;
-            color: #333;
             line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
         }
 
-        .container {
-            max-width: 1600px;
+        #container {
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
         }
 
-        .header {
+        /* Header Styles */
+        header {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 40px;
+            border-radius: 15px;
+            padding: 30px;
             margin-bottom: 30px;
             text-align: center;
             box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
         }
 
-        .header h1 {
-            font-size: 3rem;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6, #d946ef);
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 15px;
-            font-weight: 700;
+            background-clip: text;
         }
 
-        .header p {
-            font-size: 1.3rem;
+        header p {
+            font-size: 1.1rem;
             color: #666;
             margin-bottom: 20px;
         }
 
-        .file-upload {
-            margin-top: 25px;
-        }
-
-        .file-input {
+        /* File Upload Styles */
+        #csvFile {
             display: none;
         }
 
-        .file-label {
+        label[for="csvFile"] {
             display: inline-block;
-            padding: 15px 30px;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
-            border-radius: 50px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-        }
-
-        .file-label:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.6);
-        }
-
-        .loading {
-            text-align: center;
-            padding: 60px;
-            font-size: 1.3rem;
-            color: #666;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 15px;
-            margin: 20px 0;
-        }
-
-        .error {
-            background: #ef4444;
-            color: white;
-            padding: 25px;
-            border-radius: 15px;
-            margin: 20px 0;
-            text-align: center;
-            font-weight: 600;
-        }
-
-        .explanation-box {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-            border-left: 5px solid #6366f1;
-        }
-
-        .explanation-box h2 {
-            color: #6366f1;
-            font-size: 1.8rem;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .explanation-box p, .explanation-box li {
-            font-size: 1.1rem;
-            color: #555;
-            margin-bottom: 10px;
-        }
-
-        .algorithm-selector {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 30px;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-        }
-
-        .algorithm-selector h3 {
-            color: #6366f1;
-            font-size: 1.5rem;
-            margin-bottom: 15px;
-            text-align: center;
-        }
-
-        .algorithm-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-        }
-
-        .algo-btn {
-            padding: 10px 20px;
-            border: 2px solid #6366f1;
-            background: white;
-            color: #6366f1;
+            padding: 12px 25px;
             border-radius: 25px;
             cursor: pointer;
             font-weight: 600;
-            transition: all 0.3s ease;
-            font-size: 0.9rem;
-        }
-
-        .algo-btn.active {
-            background: #6366f1;
-            color: white;
-        }
-
-        .algo-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-        }
-
-        .winner-announcement {
-            background: linear-gradient(135deg, #22c55e, #16a34a);
-            color: white;
-            border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 30px;
-            text-align: center;
-            box-shadow: 0 8px 32px rgba(34, 197, 94, 0.37);
-        }
-
-        .winner-announcement h2 {
-            font-size: 2rem;
-            margin-bottom: 10px;
-        }
-
-        .winner-announcement p {
-            font-size: 1.2rem;
-            opacity: 0.9;
-        }
-
-        .performance-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
-            margin-bottom: 30px;
-        }
-
-        .performance-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 25px;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
             transition: transform 0.3s ease;
-            border: 3px solid transparent;
         }
 
-        .performance-card.winner {
-            border-color: #22c55e;
-            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(255, 255, 255, 0.95));
+        label[for="csvFile"]:hover {
+            transform: translateY(-2px);
         }
 
-        .performance-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .performance-card h3 {
-            color: #333;
-            font-size: 1.4rem;
-            margin-bottom: 15px;
+        /* Loading and Error States */
+        #loading, #error {
             text-align: center;
+            padding: 40px;
+            margin: 20px 0;
+            border-radius: 10px;
+            font-size: 1.1rem;
         }
 
-        .performance-card .winner-badge {
-            background: #22c55e;
+        #loading {
+            background: rgba(255, 255, 255, 0.9);
+            color: #667eea;
+        }
+
+        #error {
+            background: #ef4444;
             color: white;
-            padding: 5px 15px;
-            border-radius: 15px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            display: inline-block;
-            margin-left: 10px;
         }
 
-        .metric-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .metric-label {
-            color: #666;
-            font-weight: 600;
-        }
-
-        .metric-value {
-            font-weight: 700;
-            color: #333;
-        }
-
-        .charts-section {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-
-        .chart-container {
+        /* Section Styles */
+        section {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            border-radius: 20px;
+            border-radius: 15px;
             padding: 30px;
+            margin-bottom: 30px;
             box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
         }
 
-        .chart-title {
+        section h2 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        /* Summary Stats Grid */
+        #summaryStats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-label {
+            font-weight: 600;
+            color: #666;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .stat-item span:last-child {
             font-size: 1.5rem;
             font-weight: 700;
             color: #333;
+        }
+
+        /* Metrics Grid */
+        #metricsGrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+        }
+
+        .metric-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 25px;
+            border: 2px solid #e2e8f0;
+        }
+
+        .metric-card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .metric-card p {
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .metric-card span {
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* Chart Section Layout */
+        #chartsSection {
+            min-height: auto;
+        }
+
+        .charts-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+            min-height: 70vh;
+        }
+
+        .chart-container {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 25px;
+            border: 2px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-container h3 {
+            color: #667eea;
             margin-bottom: 10px;
-            text-align: center;
+            font-size: 1.4rem;
         }
 
         .chart-description {
-            font-size: 1rem;
             color: #666;
+            font-size: 0.9rem;
             margin-bottom: 20px;
-            text-align: center;
+            line-height: 1.5;
             font-style: italic;
         }
 
         .chart-wrapper {
-            position: relative;
-            height: 400px;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
         }
 
-        .full-width {
-            grid-column: 1 / -1;
-        }
-
-        .comparison-table {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-            overflow-x: auto;
-        }
-
-        .comparison-table h2 {
-            color: #6366f1;
-            font-size: 1.8rem;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .table-wrapper {
-            overflow-x: auto;
-        }
-
+        /* Table Styles */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -314,214 +225,310 @@
         }
 
         th {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
-            padding: 15px;
+            padding: 15px 10px;
             text-align: left;
-            font-weight: 700;
-            font-size: 0.95rem;
+            font-weight: 600;
         }
 
         td {
-            padding: 12px 15px;
+            padding: 12px 10px;
             border-bottom: 1px solid #e2e8f0;
-            font-size: 0.9rem;
+            vertical-align: top;
+        }
+
+        tr:nth-child(even) {
+            background: #f8fafc;
         }
 
         tr:hover {
-            background-color: rgba(99, 102, 241, 0.05);
+            background: #e0f2fe;
         }
 
-        .best-score {
-            background: rgba(34, 197, 94, 0.2);
-            color: #166534;
-            font-weight: 700;
-            border-radius: 5px;
-            padding: 2px 6px;
-        }
-
-        .algorithm-insights {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-        }
-
-        .algorithm-insights h2 {
-            color: #6366f1;
-            font-size: 2rem;
-            margin-bottom: 25px;
-            text-align: center;
-        }
-
+        /* Insights Styles */
         .insight-item {
             background: #f8fafc;
             border-radius: 10px;
             padding: 20px;
-            margin-bottom: 15px;
-            border-left: 4px solid #6366f1;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
         }
 
         .insight-item h3 {
-            color: #333;
-            font-size: 1.3rem;
+            color: #667eea;
             margin-bottom: 10px;
+            font-size: 1.3rem;
         }
 
         .insight-item p {
-            color: #666;
-            font-size: 1rem;
+            color: #555;
+            line-height: 1.6;
         }
 
+        /* Section Navigation Hint */
+        .section-nav {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(102, 126, 234, 0.9);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Responsive Design */
         @media (max-width: 768px) {
-            .container { padding: 15px; }
-            .header h1 { font-size: 2.2rem; }
-            .charts-section { grid-template-columns: 1fr; }
-            .performance-grid { grid-template-columns: 1fr; }
-            .algorithm-buttons { justify-content: center; }
+            #container {
+                padding: 15px;
+            }
+
+            header h1 {
+                font-size: 2rem;
+            }
+
+            .charts-row {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                min-height: auto;
+            }
+
+            section {
+                padding: 20px;
+                min-height: auto;
+            }
+
+            #summaryStats, #metricsGrid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>⚔️ Algorithm Battle Arena</h1>
-            <p>Compare Machine Learning Models Side-by-Side</p>
-            <div class="file-upload">
-                <input type="file" id="csvFile" class="file-input" accept=".csv">
-                <label for="csvFile" class="file-label">📈 Load ML Analysis Results</label>
-            </div>
-            <p style="margin-top: 15px; font-size: 1rem; color: #888;">
-                Upload the CSV output from your ML sentiment analyzer to compare algorithm performance
+    <div id="container">
+        <header>
+            <h1>🧠 ML Algorithm Deep Dive</h1>
+            <p>Comprehensive analysis of individual machine learning algorithm performance, confidence patterns, and decision-making behavior</p>
+            <input type="file" id="csvFile" accept=".csv">
+            <label for="csvFile">📊 Upload Algorithm Results CSV</label>
+            <p style="margin-top: 15px; font-size: 0.9rem; color: #888;">
+                Compatible with any ML output containing predictions and confidence scores
             </p>
+        </header>
+
+        <div id="loading" style="display: none;">
+            <p>🔍 Loading and analyzing your algorithm's predictions...</p>
         </div>
 
-        <div id="loading" class="loading" style="display: none;">
-            <p>🔍 Analyzing algorithm performance...</p>
-        </div>
-
-        <div id="error" class="error" style="display: none;"></div>
+        <div id="error" style="display: none;"></div>
 
         <div id="content" style="display: none;">
 
-            <div class="explanation-box">
-                <h2>🎯 Algorithm Comparison Guide</h2>
-                <p><strong>This dashboard compares different machine learning algorithms used in your sentiment analysis.</strong></p>
-                <p><strong>What you'll discover:</strong></p>
-                <ul style="margin: 10px 0 0 30px;">
-                    <li><strong>Performance Rankings:</strong> Which models achieved the highest accuracy and confidence</li>
-                    <li><strong>Strengths & Weaknesses:</strong> Where each algorithm excels or struggles</li>
-                    <li><strong>Confidence Patterns:</strong> How certain each model is about different sentiment types</li>
-                    <li><strong>Prediction Differences:</strong> How models disagree and where they align</li>
-                </ul>
-            </div>
-
-            <div id="winnerSection" class="winner-announcement" style="display: none;">
-                <h2>🏆 Winner: <span id="winnerName">Loading...</span></h2>
-                <p id="winnerDetails">Analyzing performance...</p>
-            </div>
-
-            <div class="algorithm-selector">
-                <h3>🔍 Select Algorithms to Compare</h3>
-                <div class="algorithm-buttons" id="algorithmButtons">
-                    <!-- Buttons will be populated dynamically -->
-                </div>
-                <p style="text-align: center; margin-top: 10px; color: #666; font-size: 0.9rem;">
-                    Click to show/hide algorithms in comparisons
+            <!-- Algorithm Summary -->
+            <section id="algorithmSummary">
+                <h2>📋 Algorithm Overview</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    High-level summary of your algorithm's characteristics and overall performance metrics.
                 </p>
-            </div>
-
-            <div class="performance-grid" id="performanceGrid">
-                <!-- Algorithm performance cards will be populated here -->
-            </div>
-
-            <div class="charts-section">
-                <div class="chart-container">
-                    <div class="chart-title">🏁 Performance Comparison</div>
-                    <div class="chart-description">Training accuracy comparison across selected algorithms</div>
-                    <div class="chart-wrapper">
-                        <canvas id="performanceChart"></canvas>
+                <div id="summaryStats">
+                    <div class="stat-item">
+                        <span class="stat-label">Algorithm Name</span>
+                        <span id="algorithmName">Loading...</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Algorithm Type</span>
+                        <span id="algorithmType">Loading...</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Total Predictions</span>
+                        <span id="totalPredictions">Loading...</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Average Confidence</span>
+                        <span id="avgConfidence">Loading...</span>
                     </div>
                 </div>
+            </section>
 
-                <div class="chart-container">
-                    <div class="chart-title">🎯 Confidence Levels</div>
-                    <div class="chart-description">Average confidence scores by algorithm</div>
-                    <div class="chart-wrapper">
-                        <canvas id="confidenceChart"></canvas>
+            <!-- Performance Metrics -->
+            <section id="performanceMetrics">
+                <h2>📊 Performance Breakdown</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Detailed analysis of how your algorithm distributes its predictions and confidence levels across different categories and text features.
+                </p>
+                <div id="metricsGrid">
+                    <div class="metric-card">
+                        <h3>🎯 Confidence Distribution</h3>
+                        <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">
+                            How certain the algorithm is about its predictions
+                        </p>
+                        <div>
+                            <p>High Confidence (>80%): <span id="highConfidence">0</span></p>
+                            <p>Medium Confidence (50-80%): <span id="mediumConfidence">0</span></p>
+                            <p>Low Confidence (<50%): <span id="lowConfidence">0</span></p>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>💭 Sentiment Distribution</h3>
+                        <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">
+                            How the algorithm classifies overall sentiment
+                        </p>
+                        <div>
+                            <p>Positive: <span id="positiveCount">0</span></p>
+                            <p>Negative: <span id="negativeCount">0</span></p>
+                            <p>Neutral: <span id="neutralCount">0</span></p>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>📝 Text Feature Analysis</h3>
+                        <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">
+                            Characteristics of the text data processed
+                        </p>
+                        <div>
+                            <p>Average Word Count: <span id="avgWordCount">0</span></p>
+                            <p>With Emojis: <span id="emojiCount">0</span></p>
+                            <p>With Questions: <span id="questionCount">0</span></p>
+                            <p>With Exclamations: <span id="exclamationCount">0</span></p>
+                        </div>
                     </div>
                 </div>
+            </section>
 
-                <div class="chart-container">
-                    <div class="chart-title">📊 Sentiment Predictions</div>
-                    <div class="chart-description">How each algorithm distributed sentiment predictions</div>
-                    <div class="chart-wrapper">
-                        <canvas id="sentimentChart"></canvas>
+            <!-- Charts Section - Row 1: Sentiment Analysis -->
+            <section>
+                <h2>📈 Sentiment Analysis Patterns</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Visual breakdown of how your algorithm classifies sentiment and how confident it is about different sentiment types.
+                </p>
+                <div class="charts-row">
+                    <div class="chart-container">
+                        <h3>🎭 Sentiment Distribution</h3>
+                        <div class="chart-description">
+                            Shows the overall balance of positive, negative, and neutral classifications. A balanced distribution suggests the algorithm isn't biased toward any particular sentiment, while skewed distributions may indicate dataset bias or algorithm preferences.
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="sentimentChart" width="300" height="150"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <h3>🎯 Confidence by Sentiment</h3>
+                        <div class="chart-description">
+                            Reveals which sentiment types your algorithm is most confident about. Higher bars indicate the algorithm has clearer decision boundaries for those sentiments. Lower confidence may suggest ambiguous language or training data gaps.
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="confidenceSentimentChart" width="300" height="150"></canvas>
+                        </div>
                     </div>
                 </div>
+            </section>
 
-                <div class="chart-container">
-                    <div class="chart-title">🔀 Agreement Matrix</div>
-                    <div class="chart-description">How often algorithms agree on predictions</div>
-                    <div class="chart-wrapper">
-                        <canvas id="agreementChart"></canvas>
+            <!-- Charts Section - Row 2: Confidence Analysis -->
+            <section>
+                <h2>🔍 Confidence Analysis</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Deep dive into your algorithm's confidence patterns and how text characteristics affect prediction certainty.
+                </p>
+                <div class="charts-row">
+                    <div class="chart-container">
+                        <h3>📊 Confidence Score Distribution</h3>
+                        <div class="chart-description">
+                            Histogram showing the spread of confidence scores. A bell curve centered on high values indicates consistent performance. Multiple peaks or low-centered distributions suggest uncertainty or edge cases that need attention.
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="confidenceChart" width="300" height="150"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <h3>📏 Text Length vs Confidence</h3>
+                        <div class="chart-description">
+                            Scatter plot revealing if text length affects prediction confidence. Upward trends suggest the algorithm benefits from more context, while downward trends indicate shorter texts are easier to classify.
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="lengthConfidenceChart" width="300" height="150"></canvas>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div class="comparison-table">
-                <h2>📋 Detailed Performance Metrics</h2>
-                <div class="table-wrapper">
-                    <table id="comparisonTable">
-                        <thead>
-                            <tr>
-                                <th>Algorithm</th>
-                                <th>Type</th>
-                                <th>Training Accuracy</th>
-                                <th>Avg Confidence</th>
-                                <th>High Confidence %</th>
-                                <th>Positive %</th>
-                                <th>Negative %</th>
-                                <th>Neutral %</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tableBody">
-                            <!-- Table rows will be populated here -->
-                        </tbody>
-                    </table>
+            <!-- Charts Section - Row 3: Feature & Temporal Analysis -->
+            <section>
+                <h2>🔬 Feature & Temporal Analysis</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Analysis of how specific text features and timing patterns influence your algorithm's predictions and confidence levels.
+                </p>
+                <div class="charts-row">
+                    <div class="chart-container">
+                        <h3>🔥 Feature Impact on Confidence</h3>
+                        <div class="chart-description">
+                            Shows how different text features (emojis, questions, caps, length) affect prediction confidence. Higher bars indicate features that help the algorithm make more confident decisions. Use this to understand what signals your model relies on.
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="featureChart" width="300" height="150"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <h3>⏰ Temporal Patterns</h3>
+                        <div class="chart-description">
+                            Time-based analysis of predictions (hourly or daily patterns if timestamp data is available). Can reveal if sentiment patterns change over time or if certain periods produce more confident predictions.
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="temporalChart" width="300" height="150"></canvas>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
 
-            <div class="algorithm-insights">
-                <h2>🧠 Algorithm Insights & Recommendations</h2>
-                <div id="insights">
+            <!-- Sample Predictions -->
+            <section id="samplePredictions">
+                <h2>🔍 Sample Predictions Analysis</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Representative examples across different confidence levels to understand how your algorithm makes decisions. High confidence examples show clear cases, while low confidence examples reveal edge cases and potential improvement areas.
+                </p>
+                <table id="predictionsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 40%;">Text Sample</th>
+                            <th style="width: 12%;">Prediction</th>
+                            <th style="width: 12%;">Confidence</th>
+                            <th style="width: 10%;">Words</th>
+                            <th style="width: 15%;">Features Detected</th>
+                            <th style="width: 31%;">Algorithm Analysis</th>
+                        </tr>
+                    </thead>
+                    <tbody id="predictionsBody">
+                        <!-- Table rows will be populated here -->
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Insights -->
+            <section id="insights">
+                <h2>💡 Algorithm Insights & Recommendations</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    AI-generated analysis of your algorithm's behavior patterns, strengths, weaknesses, and actionable recommendations for improvement.
+                </p>
+                <div id="insightsContent">
                     <!-- Insights will be populated here -->
                 </div>
-            </div>
+            </section>
 
+        </div>
+
+        <div class="section-nav">
+            📊 Scroll to explore sections
         </div>
     </div>
 
     <script>
         let data = [];
-        let algorithmData = {};
-        let selectedAlgorithms = new Set();
-        let manualTagColumn = null;
-
-        // Algorithm colors for consistent visualization
-        const algorithmColors = {
-            'random_forest': '#22c55e',
-            'svm': '#3b82f6',
-            'naive_bayes': '#f59e0b',
-            'logistic_regression': '#ef4444',
-            'dense_nn': '#8b5cf6',
-            'lstm': '#06b6d4',
-            'cnn': '#ec4899',
-            'cnn_lstm': '#10b981',
-            'roberta': '#f97316',
-            'bert': '#6366f1',
-            'distilbert': '#84cc16'
-        };
+        let algorithmName = 'Unknown Algorithm';
+        let algorithmType = 'unknown';
+        let charts = {};
 
         document.getElementById('csvFile').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -547,16 +554,8 @@
                         throw new Error('No valid data found in CSV file.');
                     }
 
-                    // Find manual tag column
-                    const tagColumns = ['manual_sentiment', 'tagged_sentiment', 'sentiment', 'label'];
-                    manualTagColumn = tagColumns.find(col =>
-                        col in data[0] && data.some(row => row[col] && row[col].trim())
-                    );
-
-                    console.log(`Loaded ${data.length} rows`);
-
-                    // Extract algorithm data
-                    extractAlgorithmData();
+                    detectAlgorithmInfo();
+                    console.log(`Loaded ${data.length} predictions from ${algorithmName}`);
 
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('content').style.display = 'block';
@@ -573,262 +572,137 @@
             reader.readAsText(file);
         });
 
-        function extractAlgorithmData() {
-            // This function will be populated with algorithm extraction logic
-            // For now, we'll simulate multiple algorithms based on the model_type
+        function detectAlgorithmInfo() {
+            const firstRow = data[0];
 
-            algorithmData = {};
-
-            // Get unique model types from data
-            const modelTypes = [...new Set(data.map(row => row.model_type).filter(Boolean))];
-
-            if (modelTypes.length === 0) {
-                // If no model_type, simulate based on ml_sentiment column existing
-                if (data.some(row => row.ml_sentiment)) {
-                    // Create simulated algorithm data based on the winning model
-                    const winningModel = data[0].model_name || 'random_forest';
-                    algorithmData[winningModel] = data;
-                    selectedAlgorithms.add(winningModel);
-                }
-                return;
+            if (firstRow.model_name) {
+                algorithmName = firstRow.model_name;
+            } else if (firstRow.algorithm) {
+                algorithmName = firstRow.algorithm;
+            } else {
+                algorithmName = 'ML Algorithm';
             }
 
-            // Group data by model type or simulate multiple runs
-            modelTypes.forEach(modelType => {
-                const modelData = data.filter(row => row.model_type === modelType);
-                if (modelData.length > 0) {
-                    const modelName = modelData[0].model_name || modelType;
-                    algorithmData[modelName] = modelData;
-                    selectedAlgorithms.add(modelName);
-                }
-            });
-
-            // If we only have one algorithm, simulate comparisons with variations
-            if (Object.keys(algorithmData).length === 1) {
-                simulateMultipleAlgorithms();
+            if (firstRow.model_type) {
+                algorithmType = firstRow.model_type;
+            } else if (algorithmName.includes('bert') || algorithmName.includes('roberta') || algorithmName.includes('lstm') || algorithmName.includes('neural')) {
+                algorithmType = 'neural';
+            } else {
+                algorithmType = 'traditional';
             }
         }
 
-        function simulateMultipleAlgorithms() {
-            const baseData = Object.values(algorithmData)[0];
-            const algorithms = ['random_forest', 'svm', 'naive_bayes', 'logistic_regression', 'lstm'];
+        function getConfidence(row) {
+            return row.ml_confidence || row.confidence || row.conf || 0;
+        }
 
-            algorithmData = {};
-            selectedAlgorithms.clear();
-
-            algorithms.forEach((algo, index) => {
-                // Create variations of the data with different confidence patterns
-                const simulatedData = baseData.map(row => ({
-                    ...row,
-                    model_name: algo,
-                    model_type: index < 4 ? 'traditional' : 'neural',
-                    ml_confidence: Math.max(0.3, Math.min(0.95,
-                        (row.ml_confidence || 0.7) + (Math.random() - 0.5) * 0.3
-                    )),
-                    // Occasionally flip some predictions for variety
-                    ml_sentiment: Math.random() < 0.1 ?
-                        ['positive', 'negative', 'neutral'][Math.floor(Math.random() * 3)] :
-                        row.ml_sentiment
-                }));
-
-                algorithmData[algo] = simulatedData;
-                selectedAlgorithms.add(algo);
-            });
+        function getSentiment(row) {
+            return row.ml_sentiment || row.sentiment || row.prediction || row.final_sentiment || 'neutral';
         }
 
         function generateDashboard() {
-            createAlgorithmButtons();
-            updateWinner();
-            generatePerformanceCards();
+            updateSummaryStats();
+            updatePerformanceMetrics();
             generateCharts();
-            generateComparisonTable();
+            generateSamplePredictions();
             generateInsights();
         }
 
-        function createAlgorithmButtons() {
-            const buttonsContainer = document.getElementById('algorithmButtons');
-            const algorithms = Object.keys(algorithmData);
+        function updateSummaryStats() {
+            const totalPredictions = data.length;
+            const avgConfidence = data.reduce((sum, row) => sum + (getConfidence(row) || 0), 0) / totalPredictions;
 
-            buttonsContainer.innerHTML = algorithms.map(algo => `
-                <button class="algo-btn active" onclick="toggleAlgorithm('${algo}')" id="btn-${algo}">
-                    ${algo.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </button>
-            `).join('');
+            document.getElementById('algorithmName').textContent = algorithmName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            document.getElementById('algorithmType').textContent = algorithmType.charAt(0).toUpperCase() + algorithmType.slice(1);
+            document.getElementById('totalPredictions').textContent = totalPredictions.toLocaleString();
+            document.getElementById('avgConfidence').textContent = (avgConfidence * 100).toFixed(1) + '%';
         }
 
-        function toggleAlgorithm(algorithm) {
-            const button = document.getElementById(`btn-${algorithm}`);
+        function updatePerformanceMetrics() {
+            const totalPredictions = data.length;
 
-            if (selectedAlgorithms.has(algorithm)) {
-                selectedAlgorithms.delete(algorithm);
-                button.classList.remove('active');
-            } else {
-                selectedAlgorithms.add(algorithm);
-                button.classList.add('active');
-            }
+            // Confidence distribution
+            const highConfidenceCount = data.filter(row => (getConfidence(row) || 0) > 0.8).length;
+            const mediumConfidenceCount = data.filter(row => {
+                const conf = getConfidence(row) || 0;
+                return conf > 0.5 && conf <= 0.8;
+            }).length;
+            const lowConfidenceCount = totalPredictions - highConfidenceCount - mediumConfidenceCount;
 
-            // Update charts and displays
-            generateCharts();
-            generatePerformanceCards();
-            updateWinner();
-        }
+            document.getElementById('highConfidence').textContent = `${highConfidenceCount} (${((highConfidenceCount / totalPredictions) * 100).toFixed(1)}%)`;
+            document.getElementById('mediumConfidence').textContent = `${mediumConfidenceCount} (${((mediumConfidenceCount / totalPredictions) * 100).toFixed(1)}%)`;
+            document.getElementById('lowConfidence').textContent = `${lowConfidenceCount} (${((lowConfidenceCount / totalPredictions) * 100).toFixed(1)}%)`;
 
-        function calculateAlgorithmMetrics(algoData, algoName) {
-            const mlData = algoData.filter(row => row.ml_sentiment);
-
-            // Calculate training accuracy if manual tags available
-            let trainingAccuracy = 0;
-            if (manualTagColumn) {
-                const trainingData = algoData.filter(row => row[manualTagColumn] && row.ml_sentiment);
-                const correct = trainingData.filter(row =>
-                    row[manualTagColumn].toLowerCase() === row.ml_sentiment
-                ).length;
-                trainingAccuracy = trainingData.length > 0 ? (correct / trainingData.length) : 0;
-            }
-
-            const avgConfidence = mlData.reduce((sum, row) => sum + (row.ml_confidence || 0), 0) / mlData.length;
-            const highConfidence = mlData.filter(row => (row.ml_confidence || 0) > 0.8).length;
-
+            // Sentiment distribution
             const sentimentCounts = {
-                positive: mlData.filter(row => row.ml_sentiment === 'positive').length,
-                negative: mlData.filter(row => row.ml_sentiment === 'negative').length,
-                neutral: mlData.filter(row => row.ml_sentiment === 'neutral').length
+                positive: data.filter(row => getSentiment(row) === 'positive').length,
+                negative: data.filter(row => getSentiment(row) === 'negative').length,
+                neutral: data.filter(row => getSentiment(row) === 'neutral').length
             };
 
-            return {
-                name: algoName,
-                type: mlData[0]?.model_type || 'unknown',
-                trainingAccuracy,
-                avgConfidence,
-                highConfidencePercentage: (highConfidence / mlData.length) * 100,
-                sentimentPercentages: {
-                    positive: (sentimentCounts.positive / mlData.length) * 100,
-                    negative: (sentimentCounts.negative / mlData.length) * 100,
-                    neutral: (sentimentCounts.neutral / mlData.length) * 100
-                },
-                totalPredictions: mlData.length
-            };
-        }
+            document.getElementById('positiveCount').textContent = `${sentimentCounts.positive} (${((sentimentCounts.positive / totalPredictions) * 100).toFixed(1)}%)`;
+            document.getElementById('negativeCount').textContent = `${sentimentCounts.negative} (${((sentimentCounts.negative / totalPredictions) * 100).toFixed(1)}%)`;
+            document.getElementById('neutralCount').textContent = `${sentimentCounts.neutral} (${((sentimentCounts.neutral / totalPredictions) * 100).toFixed(1)}%)`;
 
-        function updateWinner() {
-            const selectedAlgos = Array.from(selectedAlgorithms);
-            if (selectedAlgos.length === 0) return;
+            // Text features
+            const avgWordCount = data.reduce((sum, row) => sum + (row.word_count || 0), 0) / totalPredictions;
+            const emojiCount = data.filter(row => (row.emoji_count || 0) > 0).length;
+            const questionCount = data.filter(row => row.has_question || (row.text && row.text.includes('?'))).length;
+            const exclamationCount = data.filter(row => row.has_exclamation || (row.text && row.text.includes('!'))).length;
 
-            const metrics = selectedAlgos.map(algo => calculateAlgorithmMetrics(algorithmData[algo], algo));
-
-            // Determine winner based on training accuracy, then confidence
-            const winner = metrics.reduce((best, current) => {
-                if (current.trainingAccuracy > best.trainingAccuracy) return current;
-                if (current.trainingAccuracy === best.trainingAccuracy && current.avgConfidence > best.avgConfidence) return current;
-                return best;
-            });
-
-            const winnerSection = document.getElementById('winnerSection');
-            const winnerName = document.getElementById('winnerName');
-            const winnerDetails = document.getElementById('winnerDetails');
-
-            winnerName.textContent = winner.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            winnerDetails.textContent = `${(winner.trainingAccuracy * 100).toFixed(1)}% training accuracy • ${(winner.avgConfidence * 100).toFixed(1)}% average confidence • ${winner.type} model`;
-            winnerSection.style.display = 'block';
-        }
-
-        function generatePerformanceCards() {
-            const selectedAlgos = Array.from(selectedAlgorithms);
-            const performanceGrid = document.getElementById('performanceGrid');
-
-            if (selectedAlgos.length === 0) {
-                performanceGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #666;">No algorithms selected for comparison</p>';
-                return;
-            }
-
-            const metrics = selectedAlgos.map(algo => calculateAlgorithmMetrics(algorithmData[algo], algo));
-            const bestAccuracy = Math.max(...metrics.map(m => m.trainingAccuracy));
-
-            performanceGrid.innerHTML = metrics.map(metric => `
-                <div class="performance-card ${metric.trainingAccuracy === bestAccuracy && bestAccuracy > 0 ? 'winner' : ''}">
-                    <h3>
-                        ${metric.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        ${metric.trainingAccuracy === bestAccuracy && bestAccuracy > 0 ? '<span class="winner-badge">WINNER</span>' : ''}
-                    </h3>
-
-                    <div class="metric-row">
-                        <span class="metric-label">Model Type</span>
-                        <span class="metric-value">${metric.type.charAt(0).toUpperCase() + metric.type.slice(1)}</span>
-                    </div>
-
-                    <div class="metric-row">
-                        <span class="metric-label">Training Accuracy</span>
-                        <span class="metric-value">${metric.trainingAccuracy > 0 ? (metric.trainingAccuracy * 100).toFixed(1) + '%' : 'N/A'}</span>
-                    </div>
-
-                    <div class="metric-row">
-                        <span class="metric-label">Avg Confidence</span>
-                        <span class="metric-value">${(metric.avgConfidence * 100).toFixed(1)}%</span>
-                    </div>
-
-                    <div class="metric-row">
-                        <span class="metric-label">High Confidence</span>
-                        <span class="metric-value">${metric.highConfidencePercentage.toFixed(1)}%</span>
-                    </div>
-
-                    <div class="metric-row">
-                        <span class="metric-label">Predictions</span>
-                        <span class="metric-value">${metric.totalPredictions.toLocaleString()}</span>
-                    </div>
-                </div>
-            `).join('');
+            document.getElementById('avgWordCount').textContent = avgWordCount.toFixed(1);
+            document.getElementById('emojiCount').textContent = `${emojiCount} (${((emojiCount / totalPredictions) * 100).toFixed(1)}%)`;
+            document.getElementById('questionCount').textContent = `${questionCount} (${((questionCount / totalPredictions) * 100).toFixed(1)}%)`;
+            document.getElementById('exclamationCount').textContent = `${exclamationCount} (${((exclamationCount / totalPredictions) * 100).toFixed(1)}%)`;
         }
 
         function generateCharts() {
-            generatePerformanceChart();
-            generateConfidenceChart();
             generateSentimentChart();
-            generateAgreementChart();
+            generateConfidenceChart();
+            generateConfidenceSentimentChart();
+            generateLengthConfidenceChart();
+            generateFeatureChart();
+            generateTemporalChart();
         }
 
-        function generatePerformanceChart() {
-            const selectedAlgos = Array.from(selectedAlgorithms);
-            if (selectedAlgos.length === 0) return;
+        function generateSentimentChart() {
+            const sentimentCounts = {
+                positive: data.filter(row => getSentiment(row) === 'positive').length,
+                negative: data.filter(row => getSentiment(row) === 'negative').length,
+                neutral: data.filter(row => getSentiment(row) === 'neutral').length
+            };
 
-            const metrics = selectedAlgos.map(algo => calculateAlgorithmMetrics(algorithmData[algo], algo));
+            const ctx = document.getElementById('sentimentChart').getContext('2d');
+            if (charts.sentiment) charts.sentiment.destroy();
 
-            const ctx = document.getElementById('performanceChart').getContext('2d');
-
-            // Destroy existing chart if it exists
-            if (window.performanceChart) {
-                window.performanceChart.destroy();
-            }
-
-            window.performanceChart = new Chart(ctx, {
-                type: 'bar',
+            charts.sentiment = new Chart(ctx, {
+                type: 'doughnut',
                 data: {
-                    labels: metrics.map(m => m.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())),
+                    labels: ['Positive', 'Negative', 'Neutral'],
                     datasets: [{
-                        label: 'Training Accuracy (%)',
-                        data: metrics.map(m => m.trainingAccuracy * 100),
-                        backgroundColor: metrics.map(m => algorithmColors[m.name] || '#6b7280'),
-                        borderColor: metrics.map(m => algorithmColors[m.name] || '#6b7280'),
-                        borderWidth: 2,
-                        borderRadius: 8,
-                        borderSkipped: false
+                        data: [sentimentCounts.positive, sentimentCounts.negative, sentimentCounts.neutral],
+                        backgroundColor: ['#22c55e', '#ef4444', '#6b7280'],
+                        borderWidth: 3,
+                        borderColor: '#ffffff'
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            title: { display: true, text: 'Accuracy (%)' }
-                        }
-                    },
                     plugins: {
-                        legend: { display: false },
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                font: { size: 14 }
+                            }
+                        },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return `Training Accuracy: ${context.parsed.y.toFixed(1)}%`;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return `${context.label}: ${context.parsed} predictions (${percentage}%)`;
                                 }
                             }
                         }
@@ -838,118 +712,62 @@
         }
 
         function generateConfidenceChart() {
-            const selectedAlgos = Array.from(selectedAlgorithms);
-            if (selectedAlgos.length === 0) return;
+            const confidenceScores = data.map(row => getConfidence(row) || 0);
+            const bins = 15;
+            const max = Math.max(...confidenceScores);
+            const min = Math.min(...confidenceScores);
+            const binSize = (max - min) / bins;
 
-            const metrics = selectedAlgos.map(algo => calculateAlgorithmMetrics(algorithmData[algo], algo));
+            const histogram = new Array(bins).fill(0);
+            const labels = [];
+
+            for (let i = 0; i < bins; i++) {
+                const binStart = min + i * binSize;
+                const binEnd = binStart + binSize;
+                labels.push(`${(binStart * 100).toFixed(0)}-${(binEnd * 100).toFixed(0)}%`);
+
+                confidenceScores.forEach(score => {
+                    if (score >= binStart && (score < binEnd || (i === bins - 1 && score === max))) {
+                        histogram[i]++;
+                    }
+                });
+            }
 
             const ctx = document.getElementById('confidenceChart').getContext('2d');
+            if (charts.confidence) charts.confidence.destroy();
 
-            if (window.confidenceChart) {
-                window.confidenceChart.destroy();
-            }
-
-            window.confidenceChart = new Chart(ctx, {
-                type: 'radar',
-                data: {
-                    labels: ['Avg Confidence', 'High Confidence %', 'Training Accuracy'],
-                    datasets: metrics.map(metric => ({
-                        label: metric.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                        data: [
-                            metric.avgConfidence * 100,
-                            metric.highConfidencePercentage,
-                            metric.trainingAccuracy * 100
-                        ],
-                        borderColor: algorithmColors[metric.name] || '#6b7280',
-                        backgroundColor: (algorithmColors[metric.name] || '#6b7280') + '20',
-                        borderWidth: 2,
-                        pointBackgroundColor: algorithmColors[metric.name] || '#6b7280',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2
-                    }))
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        r: {
-                            beginAtZero: true,
-                            max: 100,
-                            ticks: {
-                                callback: function(value) {
-                                    return value + '%';
-                                }
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: { padding: 20 }
-                        }
-                    }
-                }
-            });
-        }
-
-        function generateSentimentChart() {
-            const selectedAlgos = Array.from(selectedAlgorithms);
-            if (selectedAlgos.length === 0) return;
-
-            const metrics = selectedAlgos.map(algo => calculateAlgorithmMetrics(algorithmData[algo], algo));
-
-            const ctx = document.getElementById('sentimentChart').getContext('2d');
-
-            if (window.sentimentChart) {
-                window.sentimentChart.destroy();
-            }
-
-            window.sentimentChart = new Chart(ctx, {
+            charts.confidence = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: metrics.map(m => m.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())),
-                    datasets: [
-                        {
-                            label: 'Positive %',
-                            data: metrics.map(m => m.sentimentPercentages.positive),
-                            backgroundColor: '#22c55e',
-                            stack: 'sentiment'
-                        },
-                        {
-                            label: 'Negative %',
-                            data: metrics.map(m => m.sentimentPercentages.negative),
-                            backgroundColor: '#ef4444',
-                            stack: 'sentiment'
-                        },
-                        {
-                            label: 'Neutral %',
-                            data: metrics.map(m => m.sentimentPercentages.neutral),
-                            backgroundColor: '#6b7280',
-                            stack: 'sentiment'
-                        }
-                    ]
+                    labels: labels,
+                    datasets: [{
+                        label: 'Number of Predictions',
+                        data: histogram,
+                        backgroundColor: '#6366f1',
+                        borderColor: '#4f46e5',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        x: { stacked: true },
+                        x: {
+                            title: { display: true, text: 'Confidence Score Range', font: { size: 14 } },
+                            ticks: { font: { size: 11 } }
+                        },
                         y: {
-                            stacked: true,
                             beginAtZero: true,
-                            max: 100,
-                            title: { display: true, text: 'Percentage of Predictions' }
+                            title: { display: true, text: 'Number of Predictions', font: { size: 14 } }
                         }
                     },
                     plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: { padding: 20 }
-                        },
+                        legend: { display: false },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+                                    return `${context.parsed.y} predictions in this confidence range`;
                                 }
                             }
                         }
@@ -958,83 +776,33 @@
             });
         }
 
-        function generateAgreementChart() {
-            const selectedAlgos = Array.from(selectedAlgorithms);
-            if (selectedAlgos.length < 2) {
-                const ctx = document.getElementById('agreementChart').getContext('2d');
-                if (window.agreementChart) {
-                    window.agreementChart.destroy();
-                }
+        function generateConfidenceSentimentChart() {
+            const sentimentConfidence = {
+                positive: data.filter(row => getSentiment(row) === 'positive').map(row => getConfidence(row) || 0),
+                negative: data.filter(row => getSentiment(row) === 'negative').map(row => getConfidence(row) || 0),
+                neutral: data.filter(row => getSentiment(row) === 'neutral').map(row => getConfidence(row) || 0)
+            };
 
-                window.agreementChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Need 2+ Algorithms'],
-                        datasets: [{
-                            label: 'Select more algorithms to see agreement',
-                            data: [0],
-                            backgroundColor: '#6b7280'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } }
-                    }
-                });
-                return;
-            }
+            const avgConfidence = {
+                positive: sentimentConfidence.positive.reduce((a, b) => a + b, 0) / sentimentConfidence.positive.length || 0,
+                negative: sentimentConfidence.negative.reduce((a, b) => a + b, 0) / sentimentConfidence.negative.length || 0,
+                neutral: sentimentConfidence.neutral.reduce((a, b) => a + b, 0) / sentimentConfidence.neutral.length || 0
+            };
 
-            // Calculate agreement matrix
-            const agreementData = [];
+            const ctx = document.getElementById('confidenceSentimentChart').getContext('2d');
+            if (charts.confidenceSentiment) charts.confidenceSentiment.destroy();
 
-            for (let i = 0; i < selectedAlgos.length; i++) {
-                for (let j = i + 1; j < selectedAlgos.length; j++) {
-                    const algo1 = selectedAlgos[i];
-                    const algo2 = selectedAlgos[j];
-
-                    const data1 = algorithmData[algo1];
-                    const data2 = algorithmData[algo2];
-
-                    // Find common records and calculate agreement
-                    let agreements = 0;
-                    let total = 0;
-
-                    data1.forEach((row1, idx) => {
-                        if (data2[idx] && row1.ml_sentiment && data2[idx].ml_sentiment) {
-                            total++;
-                            if (row1.ml_sentiment === data2[idx].ml_sentiment) {
-                                agreements++;
-                            }
-                        }
-                    });
-
-                    const agreementPercentage = total > 0 ? (agreements / total) * 100 : 0;
-                    agreementData.push({
-                        comparison: `${algo1.replace(/_/g, ' ')} vs ${algo2.replace(/_/g, ' ')}`,
-                        agreement: agreementPercentage
-                    });
-                }
-            }
-
-            const ctx = document.getElementById('agreementChart').getContext('2d');
-
-            if (window.agreementChart) {
-                window.agreementChart.destroy();
-            }
-
-            window.agreementChart = new Chart(ctx, {
+            charts.confidenceSentiment = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: agreementData.map(d => d.comparison),
+                    labels: ['Positive', 'Negative', 'Neutral'],
                     datasets: [{
-                        label: 'Agreement Rate (%)',
-                        data: agreementData.map(d => d.agreement),
-                        backgroundColor: '#8b5cf6',
-                        borderColor: '#7c3aed',
+                        label: 'Average Confidence',
+                        data: [avgConfidence.positive, avgConfidence.negative, avgConfidence.neutral],
+                        backgroundColor: ['#22c55e', '#ef4444', '#6b7280'],
+                        borderRadius: 6,
                         borderWidth: 2,
-                        borderRadius: 8,
-                        borderSkipped: false
+                        borderColor: ['#16a34a', '#dc2626', '#4b5563']
                     }]
                 },
                 options: {
@@ -1043,8 +811,13 @@
                     scales: {
                         y: {
                             beginAtZero: true,
-                            max: 100,
-                            title: { display: true, text: 'Agreement Rate (%)' }
+                            max: 1.0,
+                            title: { display: true, text: 'Average Confidence Score', font: { size: 14 } },
+                            ticks: {
+                                callback: function(value) {
+                                    return (value * 100).toFixed(0) + '%';
+                                }
+                            }
                         }
                     },
                     plugins: {
@@ -1052,7 +825,9 @@
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return `Agreement: ${context.parsed.y.toFixed(1)}%`;
+                                    const sentiment = context.label.toLowerCase();
+                                    const count = sentimentConfidence[sentiment].length;
+                                    return `${context.label}: ${(context.parsed.y * 100).toFixed(1)}% avg confidence (${count} predictions)`;
                                 }
                             }
                         }
@@ -1061,152 +836,428 @@
             });
         }
 
-        function generateComparisonTable() {
-            const selectedAlgos = Array.from(selectedAlgorithms);
-            const tableBody = document.getElementById('tableBody');
+        function generateLengthConfidenceChart() {
+            const lengthConfidenceData = data.map(row => ({
+                x: row.word_count || row.text?.split(' ').length || 0,
+                y: getConfidence(row) || 0,
+                sentiment: getSentiment(row)
+            })).filter(d => d.x > 0);
 
-            if (selectedAlgos.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #666;">No algorithms selected</td></tr>';
+            const ctx = document.getElementById('lengthConfidenceChart').getContext('2d');
+            if (charts.lengthConfidence) charts.lengthConfidence.destroy();
+
+            charts.lengthConfidence = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Text Length vs Confidence',
+                        data: lengthConfidenceData,
+                        backgroundColor: function(context) {
+                            const sentiment = lengthConfidenceData[context.dataIndex]?.sentiment;
+                            return sentiment === 'positive' ? '#22c55e80' :
+                                   sentiment === 'negative' ? '#ef444480' : '#6b728080';
+                        },
+                        borderColor: function(context) {
+                            const sentiment = lengthConfidenceData[context.dataIndex]?.sentiment;
+                            return sentiment === 'positive' ? '#22c55e' :
+                                   sentiment === 'negative' ? '#ef4444' : '#6b7280';
+                        },
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Word Count', font: { size: 14 } }
+                        },
+                        y: {
+                            title: { display: true, text: 'Confidence Score', font: { size: 14 } },
+                            min: 0,
+                            max: 1,
+                            ticks: {
+                                callback: function(value) {
+                                    return (value * 100).toFixed(0) + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const point = lengthConfidenceData[context.dataIndex];
+                                    return `${context.parsed.x} words, ${(context.parsed.y * 100).toFixed(1)}% confidence, ${point.sentiment} sentiment`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateFeatureChart() {
+            const features = {
+                'Has Emojis': data.filter(row => (row.emoji_count || 0) > 0),
+                'Has Questions': data.filter(row => row.has_question || (row.text && row.text.includes('?'))),
+                'Has Exclamations': data.filter(row => row.has_exclamation || (row.text && row.text.includes('!'))),
+                'ALL CAPS Text': data.filter(row => row.has_caps || (row.text && /[A-Z]{3,}/.test(row.text))),
+                'Long Text (>50w)': data.filter(row => (row.word_count || 0) > 50),
+                'Short Text (<10w)': data.filter(row => (row.word_count || 0) < 10)
+            };
+
+            const featureData = Object.entries(features).map(([feature, subset]) => {
+                const avgConfidence = subset.reduce((sum, row) => sum + (getConfidence(row) || 0), 0) / subset.length || 0;
+                return {
+                    feature,
+                    avgConfidence: avgConfidence * 100,
+                    count: subset.length
+                };
+            }).filter(d => d.count > 0);
+
+            const ctx = document.getElementById('featureChart').getContext('2d');
+            if (charts.feature) charts.feature.destroy();
+
+            charts.feature = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: featureData.map(d => d.feature),
+                    datasets: [{
+                        label: 'Average Confidence (%)',
+                        data: featureData.map(d => d.avgConfidence),
+                        backgroundColor: '#22c55e',
+                        borderColor: '#16a34a',
+                        borderWidth: 2,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Text Features', font: { size: 14 } },
+                            ticks: {
+                                maxRotation: 45,
+                                font: { size: 11 }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: { display: true, text: 'Average Confidence (%)', font: { size: 14 } }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const feature = featureData[context.dataIndex];
+                                    return `${feature.feature}: ${context.parsed.y.toFixed(1)}% avg confidence (${feature.count} samples)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateTemporalChart() {
+            const hasTimestamp = data.some(row => row.timestamp || row.hour !== undefined);
+
+            const ctx = document.getElementById('temporalChart').getContext('2d');
+            if (charts.temporal) charts.temporal.destroy();
+
+            if (!hasTimestamp) {
+                charts.temporal = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['No temporal data available in your dataset'],
+                        datasets: [{
+                            label: 'No temporal data found',
+                            data: [0],
+                            backgroundColor: '#9ca3af'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: false }
+                        },
+                        scales: {
+                            y: { display: false },
+                            x: {
+                                ticks: { font: { size: 12 } }
+                            }
+                        }
+                    }
+                });
                 return;
             }
 
-            const metrics = selectedAlgos.map(algo => calculateAlgorithmMetrics(algorithmData[algo], algo));
+            if (data.some(row => row.hour !== undefined && row.hour !== null)) {
+                const hourlyData = Array(24).fill(0).map(() => ({
+                    positive: 0, negative: 0, neutral: 0
+                }));
 
-            // Find best scores for highlighting
-            const bestAccuracy = Math.max(...metrics.map(m => m.trainingAccuracy));
-            const bestConfidence = Math.max(...metrics.map(m => m.avgConfidence));
-            const bestHighConf = Math.max(...metrics.map(m => m.highConfidencePercentage));
+                data.forEach(row => {
+                    if (row.hour !== undefined && row.hour !== null) {
+                        const hour = parseInt(row.hour);
+                        if (hour >= 0 && hour < 24) {
+                            const sentiment = getSentiment(row);
+                            hourlyData[hour][sentiment]++;
+                        }
+                    }
+                });
 
-            tableBody.innerHTML = metrics.map(metric => `
-                <tr>
-                    <td style="font-weight: 600;">${metric.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</td>
-                    <td>${metric.type.charAt(0).toUpperCase() + metric.type.slice(1)}</td>
-                    <td ${metric.trainingAccuracy === bestAccuracy && bestAccuracy > 0 ? 'class="best-score"' : ''}>
-                        ${metric.trainingAccuracy > 0 ? (metric.trainingAccuracy * 100).toFixed(1) + '%' : 'N/A'}
-                    </td>
-                    <td ${metric.avgConfidence === bestConfidence ? 'class="best-score"' : ''}>
-                        ${(metric.avgConfidence * 100).toFixed(1)}%
-                    </td>
-                    <td ${metric.highConfidencePercentage === bestHighConf ? 'class="best-score"' : ''}>
-                        ${metric.highConfidencePercentage.toFixed(1)}%
-                    </td>
-                    <td>${metric.sentimentPercentages.positive.toFixed(1)}%</td>
-                    <td>${metric.sentimentPercentages.negative.toFixed(1)}%</td>
-                    <td>${metric.sentimentPercentages.neutral.toFixed(1)}%</td>
-                </tr>
-            `).join('');
+                charts.temporal = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                        datasets: [
+                            {
+                                label: 'Positive',
+                                data: hourlyData.map(h => h.positive),
+                                borderColor: '#22c55e',
+                                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                                tension: 0.4,
+                                borderWidth: 2
+                            },
+                            {
+                                label: 'Negative',
+                                data: hourlyData.map(h => h.negative),
+                                borderColor: '#ef4444',
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                tension: 0.4,
+                                borderWidth: 2
+                            },
+                            {
+                                label: 'Neutral',
+                                data: hourlyData.map(h => h.neutral),
+                                borderColor: '#6b7280',
+                                backgroundColor: 'rgba(107, 114, 128, 0.1)',
+                                tension: 0.4,
+                                borderWidth: 2
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                title: { display: true, text: 'Hour of Day', font: { size: 14 } }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'Number of Predictions', font: { size: 14 } }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { font: { size: 12 } }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function generateSamplePredictions() {
+            const tableBody = document.getElementById('predictionsBody');
+
+            const highConfidence = data.filter(row => (getConfidence(row) || 0) > 0.8).slice(0, 3);
+            const mediumConfidence = data.filter(row => {
+                const conf = getConfidence(row) || 0;
+                return conf > 0.5 && conf <= 0.8;
+            }).slice(0, 3);
+            const lowConfidence = data.filter(row => (getConfidence(row) || 0) <= 0.5).slice(0, 3);
+
+            const sampleData = [...highConfidence, ...mediumConfidence, ...lowConfidence];
+
+            tableBody.innerHTML = sampleData.map(row => {
+                const sentiment = getSentiment(row);
+                const confidence = getConfidence(row) || 0;
+                const features = [];
+
+                if (row.emoji_count && row.emoji_count > 0) features.push(`${row.emoji_count} emojis`);
+                if (row.has_question || (row.text && row.text.includes('?'))) features.push('question');
+                if (row.has_exclamation || (row.text && row.text.includes('!'))) features.push('exclamation');
+                if (row.has_caps || (row.text && /[A-Z]{3,}/.test(row.text))) features.push('caps');
+
+                const analysis = generateAnalysis(row, sentiment, confidence, features);
+                const confidenceClass = confidence > 0.8 ? 'high' : confidence > 0.5 ? 'medium' : 'low';
+
+                return `
+                    <tr style="border-left: 4px solid ${sentiment === 'positive' ? '#22c55e' : sentiment === 'negative' ? '#ef4444' : '#6b7280'};">
+                        <td style="font-style: italic;">"${(row.text || '').substring(0, 120)}${row.text && row.text.length > 120 ? '...' : ''}"</td>
+                        <td style="font-weight: 600; color: ${sentiment === 'positive' ? '#16a34a' : sentiment === 'negative' ? '#dc2626' : '#4b5563'};">${sentiment}</td>
+                        <td style="font-weight: 600; color: ${confidence > 0.8 ? '#16a34a' : confidence > 0.5 ? '#d97706' : '#dc2626'};">${(confidence * 100).toFixed(1)}%</td>
+                        <td>${row.word_count || row.text?.split(' ').length || 0}</td>
+                        <td style="font-size: 0.9em;">${features.join(', ') || 'none'}</td>
+                        <td style="font-size: 0.9em; color: #555;">${analysis}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function generateAnalysis(row, sentiment, confidence, features) {
+            let analysis = '';
+
+            if (confidence > 0.8) {
+                analysis = `Strong ${sentiment} signals detected - `;
+                if (sentiment === 'positive') {
+                    analysis += 'clear positive language patterns';
+                } else if (sentiment === 'negative') {
+                    analysis += 'obvious negative sentiment indicators';
+                } else {
+                    analysis += 'balanced, neutral tone identified';
+                }
+            } else if (confidence > 0.5) {
+                analysis = `Moderate ${sentiment} classification - `;
+                if (features.length > 0) {
+                    analysis += `mixed signals with ${features.join(', ')}`;
+                } else {
+                    analysis += 'ambiguous language patterns';
+                }
+            } else {
+                analysis = 'Low confidence prediction - ';
+                analysis += 'unclear sentiment indicators, potential edge case requiring review';
+            }
+
+            if (features.includes('emojis')) {
+                analysis += ', emoji context considered';
+            }
+            if (features.includes('caps')) {
+                analysis += ', emphasized text detected';
+            }
+
+            return analysis;
         }
 
         function generateInsights() {
-            const selectedAlgos = Array.from(selectedAlgorithms);
-            const insightsContainer = document.getElementById('insights');
+            const insightsContainer = document.getElementById('insightsContent');
 
-            if (selectedAlgos.length === 0) {
-                insightsContainer.innerHTML = '<div class="insight-item"><h3>No Algorithms Selected</h3><p>Select algorithms using the buttons above to see detailed insights and recommendations.</p></div>';
-                return;
-            }
+            const totalPredictions = data.length;
+            const avgConfidence = data.reduce((sum, row) => sum + (getConfidence(row) || 0), 0) / totalPredictions;
 
-            const metrics = selectedAlgos.map(algo => calculateAlgorithmMetrics(algorithmData[algo], algo));
+            const sentimentCounts = {
+                positive: data.filter(row => getSentiment(row) === 'positive').length,
+                negative: data.filter(row => getSentiment(row) === 'negative').length,
+                neutral: data.filter(row => getSentiment(row) === 'neutral').length
+            };
+
+            const highConfidenceRate = (data.filter(row => (getConfidence(row) || 0) > 0.8).length / totalPredictions) * 100;
 
             const insights = [];
 
-            // Performance Analysis
-            const bestPerformer = metrics.reduce((best, current) =>
-                current.trainingAccuracy > best.trainingAccuracy ? current : best
-            );
-
-            const performanceRange = Math.max(...metrics.map(m => m.trainingAccuracy)) -
-                                   Math.min(...metrics.map(m => m.trainingAccuracy));
-
+            // Performance overview
             insights.push({
-                title: '🏆 Performance Leadership',
-                content: `${bestPerformer.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} leads with ${(bestPerformer.trainingAccuracy * 100).toFixed(1)}% accuracy. ${performanceRange > 0.1 ? 'There\'s significant variation between algorithms, suggesting some are better suited for your data than others.' : 'All algorithms perform similarly, indicating consistent data patterns.'}`
+                title: '🎯 Algorithm Performance Overview',
+                content: `${algorithmName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} processed ${totalPredictions.toLocaleString()} predictions with an average confidence of ${(avgConfidence * 100).toFixed(1)}%. ${highConfidenceRate > 60 ? 'The algorithm demonstrates strong confidence in most predictions, indicating reliable performance and clear decision boundaries.' : highConfidenceRate > 30 ? 'The algorithm shows moderate confidence levels, suggesting it handles most cases well but encounters uncertainty in some scenarios.' : 'Lower confidence levels indicate the algorithm may benefit from additional training data, feature engineering, or model architecture improvements.'}`
             });
 
-            // Confidence Analysis
-            const avgConfidenceOverall = metrics.reduce((sum, m) => sum + m.avgConfidence, 0) / metrics.length;
-            const mostConfident = metrics.reduce((best, current) =>
-                current.avgConfidence > best.avgConfidence ? current : best
-            );
+            // Sentiment distribution analysis
+            const dominantSentiment = Object.entries(sentimentCounts).reduce((a, b) => sentimentCounts[a[0]] > sentimentCounts[b[0]] ? a : b)[0];
+            const sentimentBalance = Math.max(...Object.values(sentimentCounts)) / Math.min(...Object.values(sentimentCounts));
 
             insights.push({
-                title: '🎯 Confidence Patterns',
-                content: `${mostConfident.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} shows the highest confidence at ${(mostConfident.avgConfidence * 100).toFixed(1)}%. Overall average confidence is ${(avgConfidenceOverall * 100).toFixed(1)}%. ${avgConfidenceOverall > 0.75 ? 'High confidence across models suggests reliable predictions.' : 'Moderate confidence suggests the models may benefit from additional training data.'}`
+                title: '💭 Sentiment Classification Patterns',
+                content: `The algorithm classified ${((sentimentCounts.positive / totalPredictions) * 100).toFixed(1)}% as positive, ${((sentimentCounts.negative / totalPredictions) * 100).toFixed(1)}% as negative, and ${((sentimentCounts.neutral / totalPredictions) * 100).toFixed(1)}% as neutral. ${sentimentBalance > 3 ? `Strong bias toward ${dominantSentiment} sentiment detected - this could indicate dataset imbalance or algorithmic bias that may need addressing.` : sentimentBalance > 2 ? `Moderate skew toward ${dominantSentiment} sentiment observed, which may reflect natural patterns in your data.` : 'Relatively balanced sentiment distribution across categories, suggesting the algorithm isn\'t biased toward any particular sentiment.'}`
             });
 
-            // Model Type Analysis
-            const traditionalModels = metrics.filter(m => m.type === 'traditional');
-            const neuralModels = metrics.filter(m => m.type === 'neural');
+            // Confidence by sentiment analysis
+            const confidenceBysentiment = {
+                positive: data.filter(row => getSentiment(row) === 'positive').map(row => getConfidence(row) || 0),
+                negative: data.filter(row => getSentiment(row) === 'negative').map(row => getConfidence(row) || 0),
+                neutral: data.filter(row => getSentiment(row) === 'neutral').map(row => getConfidence(row) || 0)
+            };
 
-            if (traditionalModels.length > 0 && neuralModels.length > 0) {
-                const traditionalAvg = traditionalModels.reduce((sum, m) => sum + m.trainingAccuracy, 0) / traditionalModels.length;
-                const neuralAvg = neuralModels.reduce((sum, m) => sum + m.trainingAccuracy, 0) / neuralModels.length;
+            const avgConfidenceBysentiment = Object.entries(confidenceBysentiment).map(([sentiment, confidences]) => ({
+                sentiment,
+                avgConfidence: confidences.reduce((a, b) => a + b, 0) / confidences.length || 0
+            }));
+
+            const mostConfidentsentiment = avgConfidenceBysentiment.reduce((a, b) => a.avgConfidence > b.avgConfidence ? a : b);
+            const leastConfidentsentiment = avgConfidenceBysentiment.reduce((a, b) => a.avgConfidence < b.avgConfidence ? a : b);
+
+            insights.push({
+                title: '🔍 Confidence Patterns by Sentiment',
+                content: `The algorithm is most confident when predicting ${mostConfidentsentiment.sentiment} sentiment (${(mostConfidentsentiment.avgConfidence * 100).toFixed(1)}% avg confidence) and least confident with ${leastConfidentsentiment.sentiment} sentiment (${(leastConfidentsentiment.avgConfidence * 100).toFixed(1)}% avg confidence). ${mostConfidentsentiment.avgConfidence - leastConfidentsentiment.avgConfidence > 0.2 ? 'This significant confidence gap suggests the algorithm has clearer decision boundaries for some sentiments than others, possibly due to training data imbalances or inherent difficulty in classifying certain sentiment types.' : 'Confidence levels are relatively consistent across sentiments, indicating balanced performance.'}`
+            });
+
+            // Feature impact
+            const emojiData = data.filter(row => (row.emoji_count || 0) > 0);
+            const noEmojiData = data.filter(row => (row.emoji_count || 0) === 0);
+
+            if (emojiData.length > 0 && noEmojiData.length > 0) {
+                const emojiConfidence = emojiData.reduce((sum, row) => sum + (getConfidence(row) || 0), 0) / emojiData.length;
+                const noEmojiConfidence = noEmojiData.reduce((sum, row) => sum + (getConfidence(row) || 0), 0) / noEmojiData.length;
 
                 insights.push({
-                    title: '⚡ Traditional vs Neural',
-                    content: `Traditional models average ${(traditionalAvg * 100).toFixed(1)}% accuracy while neural networks average ${(neuralAvg * 100).toFixed(1)}%. ${neuralAvg > traditionalAvg ? 'Neural networks show superior performance on your data, likely capturing complex patterns.' : traditionalAvg > neuralAvg ? 'Traditional models outperform neural networks, suggesting your data has clear, learnable patterns.' : 'Both approaches perform similarly, giving you flexibility in model choice.'}`
+                    title: '😊 Emoji Impact Analysis',
+                    content: `Predictions with emojis (${emojiData.length} samples) have ${(emojiConfidence * 100).toFixed(1)}% average confidence compared to ${(noEmojiConfidence * 100).toFixed(1)}% for text without emojis. ${emojiConfidence > noEmojiConfidence ? 'Emojis appear to help the algorithm make more confident predictions, likely providing clear sentiment signals that complement textual analysis.' : 'Emojis may introduce complexity that reduces prediction confidence, suggesting the algorithm might not be well-trained on emoji patterns or that emojis create ambiguous contexts.'}`
                 });
             }
 
-            // Agreement Analysis
-            if (selectedAlgos.length >= 2) {
-                let totalAgreement = 0;
-                let comparisons = 0;
+            // Text length analysis
+            const shortTexts = data.filter(row => (row.word_count || 0) < 10);
+            const longTexts = data.filter(row => (row.word_count || 0) > 30);
 
-                for (let i = 0; i < selectedAlgos.length; i++) {
-                    for (let j = i + 1; j < selectedAlgos.length; j++) {
-                        const data1 = algorithmData[selectedAlgos[i]];
-                        const data2 = algorithmData[selectedAlgos[j]];
-
-                        let agreements = 0;
-                        let total = 0;
-
-                        data1.forEach((row1, idx) => {
-                            if (data2[idx] && row1.ml_sentiment && data2[idx].ml_sentiment) {
-                                total++;
-                                if (row1.ml_sentiment === data2[idx].ml_sentiment) {
-                                    agreements++;
-                                }
-                            }
-                        });
-
-                        if (total > 0) {
-                            totalAgreement += (agreements / total);
-                            comparisons++;
-                        }
-                    }
-                }
-
-                const avgAgreement = comparisons > 0 ? (totalAgreement / comparisons) * 100 : 0;
+            if (shortTexts.length > 0 && longTexts.length > 0) {
+                const shortConfidence = shortTexts.reduce((sum, row) => sum + (getConfidence(row) || 0), 0) / shortTexts.length;
+                const longConfidence = longTexts.reduce((sum, row) => sum + (getConfidence(row) || 0), 0) / longTexts.length;
 
                 insights.push({
-                    title: '🤝 Algorithm Consensus',
-                    content: `Algorithms agree on ${avgAgreement.toFixed(1)}% of predictions on average. ${avgAgreement > 80 ? 'High agreement suggests robust, reliable predictions across different approaches.' : avgAgreement > 60 ? 'Moderate agreement indicates some uncertainty in edge cases - consider ensemble methods.' : 'Low agreement suggests high data complexity or model uncertainty - investigate disagreement patterns.'}`
+                    title: '📏 Text Length Impact',
+                    content: `Short texts (<10 words, ${shortTexts.length} samples) receive ${(shortConfidence * 100).toFixed(1)}% average confidence, while longer texts (>30 words, ${longTexts.length} samples) receive ${(longConfidence * 100).toFixed(1)}%. ${longConfidence > shortConfidence ? 'The algorithm performs better with more context, as longer texts provide more sentiment indicators and linguistic patterns to analyze.' : 'Shorter texts may be easier to classify due to concentrated sentiment signals, while longer texts introduce complexity and potentially conflicting signals that reduce confidence.'}`
+                });
+            }
+
+            // Algorithm type insights
+            if (algorithmType === 'neural') {
+                insights.push({
+                    title: '🧠 Neural Network Behavior',
+                    content: `As a neural network, this algorithm likely learned complex, non-linear patterns in your data through deep learning techniques. ${avgConfidence > 0.7 ? 'High confidence levels suggest the network has successfully learned robust feature representations and can capture subtle contextual cues.' : 'Lower confidence may indicate the need for more training data, architectural adjustments, regularization techniques, or hyperparameter tuning.'} Neural networks excel at capturing nuanced linguistic patterns but can be less interpretable than traditional methods, making it harder to understand exactly why specific decisions are made.`
+                });
+            } else {
+                insights.push({
+                    title: '⚙️ Traditional Algorithm Behavior',
+                    content: `This traditional machine learning approach relies on explicit feature engineering and statistical patterns rather than learned representations. ${avgConfidence > 0.7 ? 'Strong performance suggests well-designed features that effectively capture sentiment-relevant characteristics of your text data.' : 'Consider feature engineering improvements such as n-grams, part-of-speech tagging, sentiment lexicons, or domain-specific features.'} Traditional algorithms offer better interpretability and typically faster inference times than neural approaches, making them easier to debug and deploy.`
                 });
             }
 
             // Recommendations
             const recommendations = [];
 
-            if (bestPerformer.trainingAccuracy > 0.85) {
-                recommendations.push(`Use ${bestPerformer.name.replace(/_/g, ' ')} for production - it shows excellent performance`);
-            } else if (bestPerformer.trainingAccuracy > 0.7) {
-                recommendations.push('Consider ensemble methods combining top performers');
-            } else {
-                recommendations.push('Collect more training data or try feature engineering');
+            if (avgConfidence < 0.6) {
+                recommendations.push('Consider collecting more diverse training data or improving data quality through better labeling and preprocessing');
+            }
+            if (highConfidenceRate < 30) {
+                recommendations.push('Review edge cases and consider ensemble methods that combine multiple algorithms for better performance');
+            }
+            if (sentimentBalance > 3) {
+                recommendations.push('Address dataset imbalance through techniques like resampling, class weighting, or collecting more examples of underrepresented sentiments');
+            }
+            if (algorithmType === 'traditional' && avgConfidence < 0.7) {
+                recommendations.push('Experiment with additional features like sentiment lexicons, semantic embeddings, or domain-specific linguistic patterns');
+            }
+            if (algorithmType === 'neural' && avgConfidence < 0.7) {
+                recommendations.push('Try architectural improvements, regularization techniques, transfer learning, or fine-tuning on domain-specific data');
             }
 
-            if (avgConfidenceOverall < 0.7) {
-                recommendations.push('Low confidence suggests need for more diverse training examples');
-            }
-
-            if (selectedAlgos.length >= 2 && totalAgreement / comparisons < 0.6) {
-                recommendations.push('High disagreement - investigate data quality and edge cases');
-            }
+            recommendations.push('Consider A/B testing this algorithm against other approaches to validate production readiness and comparative performance');
 
             insights.push({
-                title: '💡 Actionable Recommendations',
-                content: recommendations.join(' • ')
+                title: '💡 Optimization Recommendations',
+                content: recommendations.length > 1 ? recommendations.join(' • ') : 'Algorithm performance appears strong across most metrics - focus on monitoring edge cases and continuous improvement through feedback loops.'
             });
 
             insightsContainer.innerHTML = insights.map(insight => `
