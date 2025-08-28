@@ -5,7 +5,7 @@
 
 I made a comment under the "Food Stamps" tag on Meta's Threads app. What resulted was, as the UI reports, 1.5k comments. I defended the purchase of soda on food stamps, as a plus size woman. 
 You can think what you want about the issue at hand, but it still remains a juicy bit of data to delve into and get some clarity around. Anecdotally, I believe there to be more negative comments
-than positive ones. But we will see!
+than positive ones. But we will see! We're turning lemons into lemonade!
 
 ## The Data
 The raw data is 730 comments, non-deduped as of writing. The 1.5k comment total shown on the Threads UI accounts for every comment nested under every other comment
@@ -27,5 +27,20 @@ on sarcasm very well.
 
 <img width="1059" height="556" alt="Screenshot 2025-08-26 at 3 55 38 PM" src="https://github.com/user-attachments/assets/c25affdb-ef95-47e8-b9f0-25e15640de87" />
 
-## What's Next: ML Re-analysis
-I am not happy with the quality of data I received from basic analysis, so I'm going to employ machine learning to see if I can get more realistic results.
+## ML Re-analysis
+I am not happy with the quality of data I received from basic analysis, so I'm employed machine learning to see if I could get more realistic results. I definitely did, though what I found is depressing!
+
+I gritted my teeth through tagging 101 mostly negative comments in my data set, for a training data set.
+
+I then trained and ran the following ML algorithms:
+- Naive Bayes
+- SVM
+- Random Forest
+- Logistic Regression
+
+<img width="670" height="372" alt="Screenshot 2025-08-28 at 2 06 51 PM" src="https://github.com/user-attachments/assets/5afaa746-f6c5-4581-bb53-2c4afea9ba44" />
+
+The winner was Random Forest, predicting 97.6% negative sentiment in the comments, with 88.6% average confidence. Some of the models predicted as much as 100% negative, which is quite imprecise, but gives a feel for the tone of these comments!
+
+## What's Next: Neural Networks
+Next I'm going to extend my scripts and dashboard to use Neural Network analysis. 
