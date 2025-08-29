@@ -12,10 +12,7 @@ In order of most to least interesting.
 
 ### V2: ML Algorithms
 [Individual Algorithm Analysis](https://theresaanna.github.io/SNAP_sentiment_analysis/v2/algorithm_comparison_dashboard.html):
-Feed this dashboard one of the `ml_individual_*.csv` files from [this directory](https://github.com/theresaanna/SNAP_sentiment_analysis/tree/main/v2) for basic insights on performance.
-
-[Winner Dashboard](https://theresaanna.github.io/SNAP_sentiment_analysis/v2/results_dashboard.html):
-Feed this dashboard a `ml_analysis_*.csv` file, found in [this directory](https://github.com/theresaanna/SNAP_sentiment_analysis/tree/main/v2). 
+Feed this dashboard the csv found at [Google Drive](https://drive.google.com/open?id=1hFCtMPaVadRCbz92Z2Qm3JFbUHBl5s4q&usp=drive_fs)
 
 ### V1: Basic NLP
 [Results Dashboard](https://theresaanna.github.io/SNAP_sentiment_analysis/threads_dashboard.html):
