@@ -8,8 +8,9 @@ You can think what you want about the issue at hand, but it still remains a juic
 than positive ones. But we will see! We're turning lemons into lemonade!
 
 ## Dashboards
-In order of most to least interesting:
+In order of most to least interesting.
 
+### V2
 [Individual Algorithm Analysis](https://theresaanna.github.io/SNAP_sentiment_analysis/v2/algorithm_comparison_dashboard.html):
 Feed this dashboard one of the `ml_individual_*.csv` files from [this directory](https://github.com/theresaanna/SNAP_sentiment_analysis/tree/main/v2) for basic insights on performance.
 
