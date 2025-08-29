@@ -7,6 +7,13 @@ I made a comment under the "Food Stamps" tag on Meta's Threads app. What resulte
 You can think what you want about the issue at hand, but it still remains a juicy bit of data to delve into and get some clarity around. Anecdotally, I believe there to be more negative comments
 than positive ones. But we will see! We're turning lemons into lemonade!
 
+## Dashboards
+In order of most to least interesting:
+[Individual Algorithm Analysis](https://theresaanna.github.io/SNAP_sentiment_analysis/v2/algorithm_comparison_dashboard.html):
+Feed this dashboard one of the `ml_individual_*.csv` files from [this directory](https://github.com/theresaanna/SNAP_sentiment_analysis/tree/main/v2) for basic insights on performance.
+[Winner Dashboard](https://theresaanna.github.io/SNAP_sentiment_analysis/v2/results_dashboard.html):
+Feed this dashboard a `ml_analysis_*.csv` file, found in [this directory](https://github.com/theresaanna/SNAP_sentiment_analysis/tree/main/v2). 
+
 ## The Data
 The raw data is 730 comments, non-deduped as of writing. The 1.5k comment total shown on the Threads UI accounts for every comment nested under every other comment
 in the thread. I pulled only one level of nested comments from my original seven posts. Any nesting that occurred by third party discussion was not picked up.
