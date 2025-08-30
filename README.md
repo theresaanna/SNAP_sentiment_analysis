@@ -54,5 +54,12 @@ I then trained and ran the following ML algorithms:
 
 The winner was Random Forest, predicting 97.6% negative sentiment in the comments, with 88.6% average confidence. Some of the models predicted as much as 100% negative, which is quite imprecise, but gives a feel for the tone of these comments!
 
-## What's Next: Neural Networks
-Next I'm going to extend my scripts and dashboard to use Neural Network analysis. 
+## Neural Networks
+I reran the traditional ML models alongside a fine-tuned RoBERTa and DistilBERT neural network models. I re-cleaned my data for v3, preserving punctuation and emoji. I stripped these for the v1 evaluation, but it is good information these subsequent models can use.
+
+I ran them all over my same training data set, now with emoji and punctuation. The winner was a bit of a surprise. It was Gradient Boosting!
+<img width="667" height="369" alt="Screenshot 2025-08-29 at 8 29 37 PM" src="https://github.com/user-attachments/assets/9ea07a23-219a-4134-8167-7d10074ffdce" />
+
+You can see here the performance of all the models I ran:
+<img width="711" height="299" alt="Screenshot 2025-08-29 at 8 27 33 PM" src="https://github.com/user-attachments/assets/9f439926-e457-42bc-ba54-943a8ae69bbe" />
+
