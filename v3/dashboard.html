@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentiment Analytics Dashboard</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- React -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
+  <!-- PapaParse -->
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <!-- WordCloud2 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div id="root"></div>
+
+  <script>
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    const STOPWORDS = new Set([
+      "a","an","the","and","or","but","if","in","on","at","to","for","of","from","by","with",
+      "is","are","was","were","be","been","being","it","this","that","these","those",
+      "as","so","i","me","my","we","our","you","your","he","she","they","them","their",
+      "his","her","rt","http","https","co","com","www"
+    ]);
+
+    function normalizeLabel(val) {
+      if (!val) return null;
+      const s = String(val).trim().toLowerCase();
+      if (["pos", "+", "positive"].includes(s)) return "positive";
+      if (["neg", "-", "negative"].includes(s)) return "negative";
+      if (["neu", "neutral", "0"].includes(s)) return "neutral";
+      return s;
+    }
+
+    function computeDistribution(rows) {
+      const dist = { positive: 0, neutral: 0, negative: 0 };
+      let total = 0;
+      rows.forEach(r => {
+        const lab = normalizeLabel(r.ml_sentiment);
+        if (lab && dist[lab] !== undefined) {
+          dist[lab]++;
+          total++;
+        }
+      });
+      return Object.keys(dist).map(k => ({
+        label: k,
+        value: dist[k],
+        pct: total ? (dist[k] / total * 100).toFixed(1) : 0
+      }));
+    }
+
+    function tokenize(text) {
+      return String(text || "")
+        .toLowerCase()
+        .replace(/https?:\/\/\S+/g, " ")
+        .replace(/[^a-z0-9\s']/g, " ")
+        .split(/\s+/)
+        .filter(w => w && !STOPWORDS.has(w) && w.length > 2);
+    }
+
+    function buildFrequencies(rows, topN = 50, sentimentFilter = 'all') {
+      const freq = {};
+
+      // Filter rows by sentiment if specified
+      let filteredRows = rows;
+      if (sentimentFilter !== 'all') {
+        filteredRows = rows.filter(r => normalizeLabel(r.ml_sentiment) === sentimentFilter);
+      }
+
+      filteredRows.forEach(r => {
+        tokenize(r.text).forEach(w => freq[w] = (freq[w] || 0) + 1);
+      });
+
+      return Object.entries(freq)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, topN)
+        .map(([text, value]) => ({ text, value }));
+    }
+
+    function computeMetrics(rows) {
+      const labels = ["positive", "neutral", "negative"];
+      const matrix = {
+        positive: { positive: 0, neutral: 0, negative: 0 },
+        neutral: { positive: 0, neutral: 0, negative: 0 },
+        negative: { positive: 0, neutral: 0, negative: 0 }
+      };
+      let total = 0, correct = 0;
+
+      rows.forEach(r => {
+        const pred = normalizeLabel(r.ml_sentiment);
+        const truth = normalizeLabel(r.manual_sentiment);
+        if (labels.includes(pred) && labels.includes(truth)) {
+          matrix[truth][pred]++;
+          total++;
+          if (pred === truth) correct++;
+        }
+      });
+
+      const metrics = {};
+      labels.forEach(label => {
+        const tp = matrix[label][label];
+        const fp = labels.reduce((s, l) => s + (l !== label ? matrix[l][label] : 0), 0);
+        const fn = labels.reduce((s, l) => s + (l !== label ? matrix[label][l] : 0), 0);
+        const precision = tp + fp > 0 ? tp / (tp + fp) : 0;
+        const recall = tp + fn > 0 ? tp / (tp + fn) : 0;
+        const f1 = precision + recall > 0 ? 2 * precision * recall / (precision + recall) : 0;
+        metrics[label] = { precision, recall, f1 };
+      });
+
+      const accuracy = total > 0 ? correct / total : 0;
+      return { matrix, metrics, accuracy, total };
+    }
+
+    // Chart.js React Components
+    function PieChart({ data, title }) {
+      const canvasRef = useRef(null);
+      const chartRef = useRef(null);
+
+      useEffect(() => {
+        if (!canvasRef.current || !data.length) return;
+
+        // Destroy existing chart
+        if (chartRef.current) {
+          chartRef.current.destroy();
+        }
+
+        const ctx = canvasRef.current.getContext('2d');
+        chartRef.current = new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: data.map(d => d.label),
+            datasets: [{
+              data: data.map(d => d.value),
+              backgroundColor: [
+                '#22c55e', // positive
+                '#94a3b8', // neutral
+                '#ef4444'  // negative
+              ],
+              borderWidth: 2,
+              borderColor: '#fff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  generateLabels: function(chart) {
+                    const dataset = chart.data.datasets[0];
+                    return chart.data.labels.map((label, i) => ({
+                      text: `${label}: ${data[i].pct}%`,
+                      fillStyle: dataset.backgroundColor[i],
+                      hidden: false,
+                      index: i
+                    }));
+                  }
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const item = data[context.dataIndex];
+                    return `${item.label}: ${item.value} (${item.pct}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        // Cleanup function
+        return () => {
+          if (chartRef.current) {
+            chartRef.current.destroy();
+          }
+        };
+      }, [data]);
+
+      return React.createElement('canvas', { ref: canvasRef });
+    }
+
+    function BarChart({ data, title }) {
+      const canvasRef = useRef(null);
+      const chartRef = useRef(null);
+
+      useEffect(() => {
+        if (!canvasRef.current || !data.length) return;
+
+        if (chartRef.current) {
+          chartRef.current.destroy();
+        }
+
+        const ctx = canvasRef.current.getContext('2d');
+        chartRef.current = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: data.map(d => d.text),
+            datasets: [{
+              label: 'Frequency',
+              data: data.map(d => d.value),
+              backgroundColor: '#3b82f6',
+              borderColor: '#2563eb',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  maxRotation: 45,
+                  minRotation: 45
+                }
+              },
+              y: {
+                beginAtZero: true
+              }
+            }
+          }
+        });
+
+        return () => {
+          if (chartRef.current) {
+            chartRef.current.destroy();
+          }
+        };
+      }, [data]);
+
+      return React.createElement('canvas', { ref: canvasRef });
+    }
+
+    function WordCloudComponent({ words, sentiment = 'all' }) {
+      const canvasRef = useRef(null);
+
+      useEffect(() => {
+        if (!words.length || !canvasRef.current) return;
+
+        try {
+          // Clear canvas first
+          const ctx = canvasRef.current.getContext('2d');
+          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+
+          // Choose colors based on sentiment
+          let colors;
+          switch(sentiment) {
+            case 'positive':
+              colors = ['#22c55e', '#16a34a', '#15803d', '#166534', '#14532d'];
+              break;
+            case 'negative':
+              colors = ['#ef4444', '#dc2626', '#b91c1c', '#991b1b', '#7f1d1d'];
+              break;
+            case 'neutral':
+              colors = ['#6b7280', '#4b5563', '#374151', '#1f2937', '#111827'];
+              break;
+            default:
+              colors = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4'];
+          }
+
+          WordCloud(canvasRef.current, {
+            list: words.map(w => [w.text, w.value]),
+            gridSize: 8,
+            weightFactor: function(size) {
+              const maxSize = Math.max(...words.map(w => w.value));
+              return (size / maxSize) * 40 + 12;
+            },
+            fontFamily: "Inter, sans-serif",
+            color: function() {
+              return colors[Math.floor(Math.random() * colors.length)];
+            },
+            rotateRatio: 0.3,
+            backgroundColor: "white",
+            minSize: 12
+          });
+        } catch (error) {
+          console.warn("WordCloud error:", error);
+        }
+      }, [words, sentiment]);
+
+      return React.createElement('canvas', {
+        ref: canvasRef,
+        width: 600,
+        height: 300,
+        style: { maxWidth: '100%', height: 'auto' }
+      });
+    }
+
+    function AlgorithmStats({ rows }) {
+      const [selectedAlgo, setSelectedAlgo] = useState('');
+
+      // Extract unique algorithms from the data
+      const algorithms = useMemo(() => {
+        const algos = new Set();
+        rows.forEach(row => {
+          if (row.model_type || row.algorithm_name || row.model_name) {
+            algos.add(row.model_type || row.algorithm_name || row.model_name);
+          }
+        });
+        return Array.from(algos);
+      }, [rows]);
+
+      const filteredRows = useMemo(() => {
+        if (!selectedAlgo) return rows;
+        return rows.filter(row =>
+          row.model_type === selectedAlgo ||
+          row.algorithm_name === selectedAlgo ||
+          row.model_name === selectedAlgo
+        );
+      }, [rows, selectedAlgo]);
+
+      const algoMetrics = useMemo(() => computeMetrics(filteredRows), [filteredRows]);
+
+      if (algorithms.length === 0) return null;
+
+      return React.createElement('div', { className: 'bg-white p-6 rounded-lg shadow mb-8' }, [
+        React.createElement('h3', { key: 'algo-title', className: 'text-lg font-medium mb-4' }, '🤖 Algorithm Performance'),
+        React.createElement('div', { key: 'algo-selector', className: 'mb-4' }, [
+          React.createElement('label', { key: 'algo-label', className: 'block text-sm font-medium text-gray-700 mb-2' }, 'Select Algorithm:'),
+          React.createElement('select', {
+            key: 'algo-select',
+            className: 'block w-full p-2 border border-gray-300 rounded-md',
+            value: selectedAlgo,
+            onChange: (e) => setSelectedAlgo(e.target.value)
+          }, [
+            React.createElement('option', { value: '', key: 'all' }, 'All Algorithms'),
+            ...algorithms.map(algo =>
+              React.createElement('option', { value: algo, key: algo }, algo)
+            )
+          ])
+        ]),
+        React.createElement('div', { key: 'algo-metrics', className: 'grid grid-cols-1 md:grid-cols-3 gap-4' }, [
+          React.createElement('div', { key: 'algo-accuracy', className: 'text-center' }, [
+            React.createElement('div', { key: 'algo-accuracy-value', className: 'text-2xl font-bold text-blue-600' },
+              `${(algoMetrics.accuracy * 100).toFixed(1)}%`
+            ),
+            React.createElement('div', { key: 'algo-accuracy-label', className: 'text-sm text-gray-500' }, 'Accuracy')
+          ]),
+          React.createElement('div', { key: 'algo-predictions', className: 'text-center' }, [
+            React.createElement('div', { key: 'algo-predictions-value', className: 'text-2xl font-bold text-green-600' },
+              filteredRows.length.toLocaleString()
+            ),
+            React.createElement('div', { key: 'algo-predictions-label', className: 'text-sm text-gray-500' }, 'Predictions')
+          ]),
+          React.createElement('div', { key: 'algo-tags', className: 'text-center' }, [
+            React.createElement('div', { key: 'algo-tags-value', className: 'text-2xl font-bold text-purple-600' },
+              algoMetrics.total.toLocaleString()
+            ),
+            React.createElement('div', { key: 'algo-tags-label', className: 'text-sm text-gray-500' }, 'Manual Tags')
+          ])
+        ])
+      ]);
+    }
+
+    function App() {
+      const [rows, setRows] = useState([]);
+      const [filename, setFilename] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [wordCloudSize, setWordCloudSize] = useState(50);
+      const [wordCloudSentiment, setWordCloudSentiment] = useState('all');
+
+      const dist = useMemo(() => computeDistribution(rows), [rows]);
+      const words = useMemo(() => buildFrequencies(rows, wordCloudSize, wordCloudSentiment), [rows, wordCloudSize, wordCloudSentiment]);
+      const { matrix, metrics, accuracy, total } = useMemo(() => computeMetrics(rows), [rows]);
+
+      function onFile(file) {
+        if (!file) return;
+        setFilename(file.name);
+        setLoading(true);
+
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (res) => {
+            const parsed = res.data.map(r => ({
+              ...r,
+              ml_sentiment: normalizeLabel(r.ml_sentiment),
+              manual_sentiment: normalizeLabel(r.manual_sentiment)
+            }));
+            setRows(parsed);
+            setLoading(false);
+          },
+          error: (error) => {
+            console.error("CSV parsing error:", error);
+            setLoading(false);
+          }
+        });
+      }
+
+      return React.createElement('div', { className: 'max-w-7xl mx-auto p-6' }, [
+        // Header
+        React.createElement('div', { key: 'header', className: 'mb-8' }, [
+          React.createElement('h1', { key: 'title', className: 'text-3xl font-bold text-gray-800 mb-4' }, 'ML Sentiment Analytics Dashboard'),
+          React.createElement('div', { key: 'file-section', className: 'flex items-center gap-4 mb-4' }, [
+            React.createElement('input', {
+              key: 'file-input',
+              type: 'file',
+              accept: '.csv',
+              onChange: (e) => onFile(e.target.files[0]),
+              className: 'block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100'
+            }),
+            loading && React.createElement('div', { key: 'loading', className: 'text-blue-600' }, '⏳ Loading...')
+          ]),
+          filename && React.createElement('p', { key: 'filename', className: 'text-gray-600' }, `📄 Loaded: ${filename} (${rows.length} rows)`)
+        ]),
+
+        // Stats Cards
+        rows.length > 0 && React.createElement('div', { key: 'stats-cards', className: 'grid grid-cols-1 md:grid-cols-4 gap-4 mb-8' }, [
+          React.createElement('div', { key: 'stat-total', className: 'bg-white p-4 rounded-lg shadow' }, [
+            React.createElement('h3', { key: 'stat-total-label', className: 'text-sm font-medium text-gray-500' }, 'Total Comments'),
+            React.createElement('p', { key: 'stat-total-value', className: 'text-2xl font-bold text-gray-900' }, rows.length.toLocaleString())
+          ]),
+          React.createElement('div', { key: 'stat-accuracy', className: 'bg-white p-4 rounded-lg shadow' }, [
+            React.createElement('h3', { key: 'stat-accuracy-label', className: 'text-sm font-medium text-gray-500' }, 'Accuracy'),
+            React.createElement('p', { key: 'stat-accuracy-value', className: 'text-2xl font-bold text-gray-900' },
+              total > 0 ? `${(accuracy * 100).toFixed(1)}%` : 'N/A'
+            )
+          ]),
+          React.createElement('div', { key: 'stat-manual', className: 'bg-white p-4 rounded-lg shadow' }, [
+            React.createElement('h3', { key: 'stat-manual-label', className: 'text-sm font-medium text-gray-500' }, 'Manual Tags'),
+            React.createElement('p', { key: 'stat-manual-value', className: 'text-2xl font-bold text-gray-900' }, total.toLocaleString())
+          ]),
+          React.createElement('div', { key: 'stat-positive', className: 'bg-white p-4 rounded-lg shadow' }, [
+            React.createElement('h3', { key: 'stat-positive-label', className: 'text-sm font-medium text-gray-500' }, 'Positive %'),
+            React.createElement('p', { key: 'stat-positive-value', className: 'text-2xl font-bold text-green-600' },
+              dist.find(d => d.label === 'positive')?.pct + '%' || '0%'
+            )
+          ])
+        ]),
+
+        // Algorithm Performance
+        rows.length > 0 && React.createElement(AlgorithmStats, { key: 'algo-stats', rows }),
+
+        // Performance Metrics
+        total > 0 && React.createElement('div', { key: 'performance-metrics', className: 'mb-8' }, [
+          React.createElement('h2', { key: 'perf-title', className: 'text-xl font-semibold mb-4' }, '🎯 Model Performance'),
+          React.createElement('div', { key: 'perf-grid', className: 'grid grid-cols-1 lg:grid-cols-2 gap-6' }, [
+            // Metrics Table
+            React.createElement('div', { key: 'metrics-table', className: 'bg-white p-6 rounded-lg shadow' }, [
+              React.createElement('h3', { key: 'metrics-title', className: 'text-lg font-medium mb-4' }, 'Classification Metrics'),
+              React.createElement('table', { key: 'metrics-table-el', className: 'w-full text-sm' }, [
+                React.createElement('thead', { key: 'metrics-thead' }, [
+                  React.createElement('tr', { key: 'metrics-header-row', className: 'border-b' }, [
+                    React.createElement('th', { key: 'header-label', className: 'text-left py-2' }, 'Label'),
+                    React.createElement('th', { key: 'header-precision', className: 'text-right py-2' }, 'Precision'),
+                    React.createElement('th', { key: 'header-recall', className: 'text-right py-2' }, 'Recall'),
+                    React.createElement('th', { key: 'header-f1', className: 'text-right py-2' }, 'F1-Score')
+                  ])
+                ]),
+                React.createElement('tbody', { key: 'metrics-tbody' },
+                  Object.keys(metrics).map(label =>
+                    React.createElement('tr', { key: `metric-row-${label}`, className: 'border-b' }, [
+                      React.createElement('td', {
+                        key: `metric-label-${label}`,
+                        className: `py-2 font-medium ${label === 'positive' ? 'text-green-600' : label === 'negative' ? 'text-red-600' : 'text-gray-600'}`
+                      }, label),
+                      React.createElement('td', { key: `metric-precision-${label}`, className: 'text-right py-2' }, metrics[label].precision.toFixed(3)),
+                      React.createElement('td', { key: `metric-recall-${label}`, className: 'text-right py-2' }, metrics[label].recall.toFixed(3)),
+                      React.createElement('td', { key: `metric-f1-${label}`, className: 'text-right py-2' }, metrics[label].f1.toFixed(3))
+                    ])
+                  )
+                )
+              ])
+            ]),
+            // Confusion Matrix
+            React.createElement('div', { key: 'confusion-matrix', className: 'bg-white p-6 rounded-lg shadow' }, [
+              React.createElement('h3', { key: 'confusion-title', className: 'text-lg font-medium mb-4' }, 'Confusion Matrix'),
+              React.createElement('table', { key: 'confusion-table', className: 'w-full text-sm' }, [
+                React.createElement('thead', { key: 'confusion-thead' }, [
+                  React.createElement('tr', { key: 'confusion-header-row' }, [
+                    React.createElement('th', { key: 'confusion-header-main', className: 'p-2' }, 'True \\ Pred'),
+                    ...["positive", "neutral", "negative"].map(h =>
+                      React.createElement('th', { key: `confusion-header-${h}`, className: 'p-2 text-center' }, h)
+                    )
+                  ])
+                ]),
+                React.createElement('tbody', { key: 'confusion-tbody' },
+                  ["positive", "neutral", "negative"].map(truth =>
+                    React.createElement('tr', { key: `confusion-row-${truth}` }, [
+                      React.createElement('td', {
+                        key: `confusion-label-${truth}`,
+                        className: `p-2 font-medium ${truth === 'positive' ? 'text-green-600' : truth === 'negative' ? 'text-red-600' : 'text-gray-600'}`
+                      }, truth),
+                      ...["positive", "neutral", "negative"].map(pred =>
+                        React.createElement('td', {
+                          key: `confusion-cell-${truth}-${pred}`,
+                          className: `p-2 text-center ${truth === pred ? 'bg-blue-50 font-semibold' : ''}`
+                        }, matrix[truth][pred])
+                      )
+                    ])
+                  )
+                )
+              ])
+            ])
+          ])
+        ]),
+
+        // Charts
+        rows.length > 0 && React.createElement('div', { key: 'charts-section', className: 'grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8' }, [
+          // Sentiment Distribution
+          React.createElement('div', { key: 'sentiment-chart', className: 'bg-white p-6 rounded-lg shadow' }, [
+            React.createElement('h3', { key: 'sentiment-chart-title', className: 'text-lg font-medium mb-4' }, '📊 Sentiment Distribution'),
+            React.createElement('div', { key: 'sentiment-chart-container', className: 'h-64' }, [
+              React.createElement(PieChart, { key: 'sentiment-pie', data: dist, title: "Sentiment Distribution" })
+            ])
+          ]),
+          // Word Frequency
+          React.createElement('div', { key: 'word-chart', className: 'bg-white p-6 rounded-lg shadow' }, [
+            React.createElement('h3', { key: 'word-chart-title', className: 'text-lg font-medium mb-4' }, '📝 Top Words'),
+            React.createElement('div', { key: 'word-chart-container', className: 'h-64' }, [
+              React.createElement(BarChart, { key: 'word-bar', data: words, title: "Word Frequency" })
+            ])
+          ])
+        ]),
+
+        // Word Cloud
+        words.length > 0 && React.createElement('div', { key: 'wordcloud-section', className: 'bg-white p-6 rounded-lg shadow mb-8' }, [
+          React.createElement('h3', { key: 'wordcloud-title', className: 'text-lg font-medium mb-4' }, '☁️ Interactive Word Cloud'),
+
+          // Sentiment Filter Buttons
+          React.createElement('div', { key: 'wordcloud-sentiment-filters', className: 'mb-4' }, [
+            React.createElement('div', { key: 'sentiment-label', className: 'text-sm font-medium text-gray-700 mb-2' }, 'Filter by sentiment:'),
+            React.createElement('div', { key: 'sentiment-buttons', className: 'flex flex-wrap gap-2' }, [
+              React.createElement('button', {
+                key: 'filter-all',
+                onClick: () => setWordCloudSentiment('all'),
+                className: `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  wordCloudSentiment === 'all'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`
+              }, '🌈 All Words'),
+              React.createElement('button', {
+                key: 'filter-positive',
+                onClick: () => setWordCloudSentiment('positive'),
+                className: `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  wordCloudSentiment === 'positive'
+                    ? 'bg-green-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`
+              }, '😊 Positive'),
+              React.createElement('button', {
+                key: 'filter-neutral',
+                onClick: () => setWordCloudSentiment('neutral'),
+                className: `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  wordCloudSentiment === 'neutral'
+                    ? 'bg-gray-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`
+              }, '😐 Neutral'),
+              React.createElement('button', {
+                key: 'filter-negative',
+                onClick: () => setWordCloudSentiment('negative'),
+                className: `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  wordCloudSentiment === 'negative'
+                    ? 'bg-red-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`
+              }, '😞 Negative')
+            ])
+          ]),
+
+          // Word Count Slider
+          React.createElement('div', { key: 'wordcloud-controls', className: 'mb-4 flex items-center gap-4' }, [
+            React.createElement('label', { key: 'wordcloud-label', className: 'text-sm font-medium text-gray-700' }, 'Number of words:'),
+            React.createElement('input', {
+              key: 'wordcloud-slider',
+              type: 'range',
+              min: 10,
+              max: 150,
+              value: wordCloudSize,
+              onChange: (e) => setWordCloudSize(parseInt(e.target.value)),
+              className: 'flex-1 max-w-xs h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer'
+            }),
+            React.createElement('span', {
+              key: 'wordcloud-count',
+              className: 'text-sm font-semibold text-gray-600 min-w-[3rem]'
+            }, wordCloudSize)
+          ]),
+
+          // Word Count Info
+          React.createElement('div', { key: 'wordcloud-info', className: 'mb-4 text-sm text-gray-600' },
+            `Showing ${words.length} most frequent words from ${
+              wordCloudSentiment === 'all' ? 'all comments' :
+              wordCloudSentiment === 'positive' ? 'positive comments' :
+              wordCloudSentiment === 'negative' ? 'negative comments' : 'neutral comments'
+            }`
+          ),
+
+          React.createElement('div', { key: 'wordcloud-container', className: 'flex justify-center' }, [
+            React.createElement(WordCloudComponent, {
+              key: `wordcloud-${wordCloudSentiment}-${wordCloudSize}`,
+              words,
+              sentiment: wordCloudSentiment
+            })
+          ])
+        ]),
+
+        // Comment Viewer
+        rows.length > 0 && React.createElement('div', { key: 'comments-section', className: 'bg-white p-6 rounded-lg shadow' }, [
+          React.createElement('h3', { key: 'comments-title', className: 'text-lg font-medium mb-4' }, '💬 Sample Comments'),
+          React.createElement('div', { key: 'comments-container', className: 'max-h-96 overflow-y-auto space-y-3' },
+            rows.slice(0, 50).map((r, idx) => {
+              const mismatch = r.ml_sentiment && r.manual_sentiment && r.ml_sentiment !== r.manual_sentiment;
+              const cardClass = mismatch
+                ? "p-4 border-2 border-red-200 bg-red-50 rounded-lg"
+                : "p-4 border border-gray-200 bg-gray-50 rounded-lg";
+
+              const predColor = r.ml_sentiment === "positive" ? "text-green-600"
+                               : r.ml_sentiment === "negative" ? "text-red-600"
+                               : "text-gray-600";
+
+              return React.createElement('div', { key: `comment-${idx}`, className: cardClass }, [
+                React.createElement('p', { key: `comment-text-${idx}`, className: 'text-gray-800 mb-2' }, r.text || "(no text)"),
+                React.createElement('div', { key: `comment-meta-${idx}`, className: 'text-sm flex gap-4' }, [
+                  React.createElement('span', { key: `comment-pred-${idx}`, className: `font-semibold ${predColor}` },
+                    `Predicted: ${r.ml_sentiment || "—"}`
+                  ),
+                  r.manual_sentiment && React.createElement('span', { key: `comment-true-${idx}`, className: 'text-blue-600 font-semibold' },
+                    `True: ${r.manual_sentiment}`
+                  ),
+                  mismatch && React.createElement('span', { key: `comment-mismatch-${idx}`, className: 'text-red-600 font-bold' }, '⚠️ MISMATCH')
+                ])
+              ]);
+            })
+          )
+        ])
+      ]);
+    }
+
+    // Render the app
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot ? ReactDOM.createRoot(container) : null;
+
+    if (root) {
+      root.render(React.createElement(App));
+    } else {
+      ReactDOM.render(React.createElement(App), container);
+    }
+  </script>
+</body>
+</html>
