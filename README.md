@@ -1,5 +1,7 @@
 # SNAP Sentiment Analysis Project
 
+# In critical need of updates. See [this blog post](https://www.theresasumma.com/blog/food-stamps-viral-thread-sentiment-analysis-project) for more up to date info.
+
 ## Story
 <img width="655" height="328" alt="Screenshot 2025-08-26 at 3 42 06 PM" src="https://github.com/user-attachments/assets/268f9495-8c6e-4d40-80ee-66c3dc985b23" />
 
